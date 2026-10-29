@@ -1,4 +1,4 @@
-# ApartTUSITU's Xiaomi SM8250 Kernel
+# TanpaNama's Xiaomi SM8250 Kernel
 
 ## Warning
 
@@ -24,10 +24,11 @@ This repository is based on [LineageOS/android_kernel_qcom_sm8250](https://githu
 
 ## Features
 
-This kernel supports [BakaSU](https://github.com/Baka-SU/BakaSU) & [SuSFS](https://gitlab.com/simonpunk/susfs4ksu) & [NoMount](https://github.com/maxsteeel/nomount).  
+This kernel supports [BakaSU](https://github.com/Baka-SU/BakaSU) & [SuSFS](https://gitlab.com/simonpunk/susfs4ksu) & [NoMount](https://github.com/maxsteeel/nomount) & [BORE](https://github.com/firelzrd/bore-scheduler) (Burst-Oriented Response Enhancer) scheduler.  
 Please install the BakaSU Manager by yourself.  
 The NoKernelSU version supports Magisk and APatch (and their forks).  
-Droidspaces (LXC/Docker container support) can be enabled as an optional build flag.
+Droidspaces (LXC/Docker container support) can be enabled as an optional build flag.  
+BORE is always enabled (`CONFIG_SCHED_BORE=y`) to improve UI responsiveness under heavy background load.
 
 The prebuilt kernel in the **Release** section is compiled from the `android17-aptusitu` branch, and should work on stock MIUI/HyperOS as well as third-party AOSP-based ROMs for Android 11–17.  
 Feedback is welcome (via Issues or Pull Requests)! Coolapk users can join the discussion in [this post](https://www.coolapk.com/feed/69700122), you can also join my QQ group, or send me private feedback.
@@ -42,12 +43,13 @@ Below are some of the key features:
 6. Backported Binder from 5.10; MIUI builds incorporate millet from xaga, while AOSP builds incorporate [Re:Kernel](https://github.com/Sakion-Team/Re-Kernel)
 7. Fixes [the issue where the battery percentage gets stuck at 1%](https://github.com/liyafe1997/Xiaomi-fix-battery-one-percent), and supports recognizing higher-capacity replacement batteries
 8. Integrate [BBG(Baseband-guard)](https://github.com/vc-teahouse/Baseband-guard)
+9. [BORE](https://github.com/firelzrd/bore-scheduler) scheduler for burst-based task prioritization
 
 ---
 
 ## Community
 
-Join ApartTUSITU's QQ Group: [700675046](https://qm.qq.com/q/Md7nXA3Toa).
+Join TanpaNama's QQ Group: [700675046](https://qm.qq.com/q/Md7nXA3Toa).
 
 ---
 
