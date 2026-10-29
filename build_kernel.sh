@@ -291,6 +291,13 @@ build_target() {
     # be compiled before uapi-asm-generic wraps those headers, failing with
     # "asm/types.h file not found". Pre-generating them avoids that race.
     make "${MAKE_OPTS[@]}" uapi-asm-generic
+    # TEMP DEBUG (remove after CI diagnosis)
+    echo "[DBG] OS=$OS_TYPE OUT_DIR=$OUT_DIR"
+    echo "[DBG] pwd=$(pwd)"
+    echo "[DBG] Kbuild exists: $([ -f arch/arm64/include/uapi/asm/Kbuild ] && echo yes || echo no)"
+    echo "[DBG] uapi files in out: $([ -d ${OUT_DIR}/arch/arm64/include/generated/uapi/asm ] && ls ${OUT_DIR}/arch/arm64/include/generated/uapi/asm | wc -l || echo 0)"
+    echo "[DBG] uapi Kbuild content head:"
+    head -3 arch/arm64/include/uapi/asm/Kbuild 2>/dev/null || echo missing
 
     echo "[*] Building kernel..."
     make "${MAKE_OPTS[@]}" 
