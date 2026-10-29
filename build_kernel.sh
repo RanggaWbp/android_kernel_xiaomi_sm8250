@@ -291,13 +291,35 @@ build_target() {
     # be compiled before uapi-asm-generic wraps those headers, failing with
     # "asm/types.h file not found". Pre-generating them avoids that race.
     make "${MAKE_OPTS[@]}" uapi-asm-generic
-    # TEMP DEBUG (remove after CI diagnosis)
-    echo "[DBG] OS=$OS_TYPE OUT_DIR=$OUT_DIR"
-    echo "[DBG] pwd=$(pwd)"
-    echo "[DBG] Kbuild exists: $([ -f arch/arm64/include/uapi/asm/Kbuild ] && echo yes || echo no)"
-    echo "[DBG] uapi files in out: $([ -d ${OUT_DIR}/arch/arm64/include/generated/uapi/asm ] && ls ${OUT_DIR}/arch/arm64/include/generated/uapi/asm | wc -l || echo 0)"
-    echo "[DBG] uapi Kbuild content head:"
-    head -3 arch/arm64/include/uapi/asm/Kbuild 2>/dev/null || echo missing
+    # make uapi-asm-generic can write the wrappers into the srctree (not OUT)
+    # depending on how O= was negotiated; hoist them into OUT so the build sees
+    # <asm/types.h> regardless.
+    if [ ! -d "${OUT_DIR}/arch/arm64/include/generated/uapi/asm" ] && \
+       [ -d "arch/arm64/include/generated/uapi/asm" ]; then
+        echo "[*] Hoisting tree uapi headers into ${OUT_DIR}"
+        mkdir -p "${OUT_DIR}/arch/arm64/include/generated/uapi/asm"
+        cp -a arch/arm64/include/generated/uapi/asm/. \
+              "${OUT_DIR}/arch/arm64/include/generated/uapi/asm/"
+    fi
+
+    echo "[*] Compilation"
+    if [ -f "$DEFCONFIG_PATH" ]; then
+        # Guarantee the arch UAPI wrappers exist in the build dir regardless of
+        # whether 'make uapi-asm-generic' actually emits them (in a two-pass
+        # AOSP+MIUI run the second pass can silently skip the WRAP step and
+        # scripts/mod/devicetable-offsets.c then fails with
+        # 'asm/types.h file not found'). We generate them deterministically
+        # from the arch Kbuild generic-y list.
+        local UAPI_KBUILD="arch/${ARCH}/include/uapi/asm/Kbuild"
+        local UAPI_OUT="${OUT_DIR}/arch/${ARCH}/include/generated/uapi/asm"
+        if [ -f "$UAPI_KBUILD" ] && grep -q generic-y "$UAPI_KBUILD"; then
+            mkdir -p "$UAPI_OUT"
+            # shellcheck disable=SC2013
+            for H in $(grep -oP '(?<=generic-y \+= )\S+(?=\.h)' "$UAPI_KBUILD"); do
+                echo "#include <asm-generic/${H}.h>" > "$UAPI_OUT/${H}.h"
+            done
+        fi
+    fi
 
     echo "[*] Building kernel..."
     make "${MAKE_OPTS[@]}" 
