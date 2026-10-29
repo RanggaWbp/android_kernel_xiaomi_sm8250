@@ -286,22 +286,6 @@ build_target() {
     # ----------------------------------------------------
     # Compilation
     # ----------------------------------------------------
-    # Generate arch UAPI headers (asm/types.h et al) up front. scripts/mod's
-    # devicetable-offsets.s includes <asm/types.h> and in parallel builds it can
-    # be compiled before uapi-asm-generic wraps those headers, failing with
-    # "asm/types.h file not found". Pre-generating them avoids that race.
-    make "${MAKE_OPTS[@]}" uapi-asm-generic
-    # make uapi-asm-generic can write the wrappers into the srctree (not OUT)
-    # depending on how O= was negotiated; hoist them into OUT so the build sees
-    # <asm/types.h> regardless.
-    if [ ! -d "${OUT_DIR}/arch/arm64/include/generated/uapi/asm" ] && \
-       [ -d "arch/arm64/include/generated/uapi/asm" ]; then
-        echo "[*] Hoisting tree uapi headers into ${OUT_DIR}"
-        mkdir -p "${OUT_DIR}/arch/arm64/include/generated/uapi/asm"
-        cp -a arch/arm64/include/generated/uapi/asm/. \
-              "${OUT_DIR}/arch/arm64/include/generated/uapi/asm/"
-    fi
-
     echo "[*] Compilation"
     if [ -f "$DEFCONFIG_PATH" ]; then
         # Guarantee the arch UAPI wrappers exist in the build dir regardless of
