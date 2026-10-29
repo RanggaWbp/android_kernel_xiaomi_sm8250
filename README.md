@@ -1,4 +1,4 @@
-# TanpaNama's Xiaomi SM8250 Kernel
+# Xiaomi SM8250 Kernel
 
 ## Warning
 
@@ -8,7 +8,6 @@ The kernel source code is still under development and may cause some unpredictab
 
 - [Introduction](#introduction)
 - [Features](#features)
-- [Community](#community)
 - [Supported Devices](#supported-devices)
 - [Build Instructions](#build-instructions)
   - [Quick Build](#quick-build)
@@ -44,12 +43,6 @@ Below are some of the key features:
 7. Fixes [the issue where the battery percentage gets stuck at 1%](https://github.com/liyafe1997/Xiaomi-fix-battery-one-percent), and supports recognizing higher-capacity replacement batteries
 8. Integrate [BBG(Baseband-guard)](https://github.com/vc-teahouse/Baseband-guard)
 9. [BORE](https://github.com/firelzrd/bore-scheduler) scheduler for burst-based task prioritization
-
----
-
-## Community
-
-Join TanpaNama's QQ Group: [700675046](https://qm.qq.com/q/Md7nXA3Toa).
 
 ---
 
