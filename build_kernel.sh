@@ -27,6 +27,7 @@ if [ ! -f "$DEFCONFIG_PATH" ]; then
 fi
 
 ENABLE_KSU=0
+ENABLE_DROIDSPACES=0
 TARGET_OS="both"
 
 shift
@@ -34,6 +35,7 @@ shift
 for arg in "$@"; do
     case "$arg" in
         ksu) ENABLE_KSU=1 ;;
+        droidspaces) ENABLE_DROIDSPACES=1 ;;
         miui) TARGET_OS="miui" ;;
         aosp) TARGET_OS="aosp" ;;
     esac
@@ -265,6 +267,16 @@ build_target() {
         scripts/config --file "${OUT_DIR}/.config" \
             -e REKERNEL \
             -e REKERNEL_NETWORK
+    fi
+
+    # 5. Droidspaces configurations
+    if [ "$ENABLE_DROIDSPACES" -eq 1 ]; then
+        echo "[*] Injecting Droidspaces specific configurations..."
+        DROIDSPACES_CONFIG="${KERNEL_DIR}/.droidspaces.config"
+        if [ ! -f "$DROIDSPACES_CONFIG" ]; then
+            curl -LSs "https://raw.githubusercontent.com/JackA1ltman/NonGKI_Kernel_Build_2nd/mainline/Patches/Droidspaces/droidspaces.config" -o "$DROIDSPACES_CONFIG"
+        fi
+        cat "$DROIDSPACES_CONFIG" >> "${OUT_DIR}/.config"
     fi
 
     # We always need to re-evaluate dependencies because BBG is injected unconditionally

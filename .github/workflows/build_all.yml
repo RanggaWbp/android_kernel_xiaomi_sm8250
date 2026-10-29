@@ -8,6 +8,11 @@ on:
         required: true
         type: boolean
         default: true
+      droidspaces:
+        description: 'Enable Droidspaces (LXC/Docker) support for all builds'
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -79,6 +84,10 @@ jobs:
           if [ "${{ matrix.ksu }}" = "true" ]; then
             ARGS="$ARGS ksu"
           fi
+
+          if [ "${{ github.event.inputs.droidspaces }}" == "true" ]; then
+            ARGS="$ARGS droidspaces"
+          fi
           
           echo "Executing command: ./build_kernel.sh $ARGS"
           ./build_kernel.sh $ARGS
@@ -132,5 +141,6 @@ jobs:
             - **MIUI**: 适用于原厂 MIUI / HyperOS 或基于 MIUI 修改的第三方 ROM。
             - **AOSP**: 适用于 LineageOS 等类原生 AOSP ROM。
             - **BakaSU-SuSFS-NoMount**: 集成 BakaSU 与 SuSFS 和 NoMount。
+            - **Droidspaces**: 启用 LXC/Docker 容器支持 (可选，通过 droidspaces 输入开启)。
             - **NoKernelSU**: 原版纯净内核，支持自行使用 Magisk 或 APatch 刷入。
           files: all_kernels/*.zip

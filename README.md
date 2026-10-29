@@ -28,7 +28,7 @@ This repository is based on [LineageOS/android_kernel_qcom_sm8250](https://githu
 
 ## 特性 / Features
 **中文:**  
-本内核支持 [BakaSU](https://github.com/Baka-SU/BakaSU) & [SuSFS](https://gitlab.com/simonpunk/susfs4ksu) & [NoMount](https://github.com/maxsteeel/nomount)。请自行安装 BakaSU 的管理器。NoKernelSU 版本支持应用 Magisk 和 APatch(及他们的分支)。  
+本内核支持 [BakaSU](https://github.com/Baka-SU/BakaSU) & [SuSFS](https://gitlab.com/simonpunk/susfs4ksu) & [NoMount](https://github.com/maxsteeel/nomount)。请自行安装 BakaSU 的管理器。NoKernelSU 版本支持应用 Magisk 和 APatch(及他们的分支)。内核可选启用 [Droidspaces](https://github.com/ravindu644/Droidspaces-OSS) 以支持 LXC/Docker 容器。  
 
 **Release** 里的编译好的内核成品由 `android17-aptusitu` 分支编译，应当能在原版 MIUI/HyperOS 和第三方的基于 AOSP 的各种 Android11-17 的 ROM 上使用。欢迎大家尝试并反馈(提 Issue 或 Pull Requests)! 酷友们到 [这个帖子](https://www.coolapk.com/feed/69700122) 讨论或反馈，也可以加入 QQ 群，或者给我私信反馈!  
 
@@ -46,6 +46,7 @@ This repository is based on [LineageOS/android_kernel_qcom_sm8250](https://githu
 This kernel supports [BakaSU](https://github.com/Baka-SU/BakaSU) & [SuSFS](https://gitlab.com/simonpunk/susfs4ksu) & [NoMount](https://github.com/maxsteeel/nomount).  
 Please install the BakaSU Manager by yourself.  
 The NoKernelSU version supports Magisk and APatch (and their forks).  
+Droidspaces (LXC/Docker container support) can be enabled as an optional build flag.  
 
 The prebuilt kernel in the **Release** section is compiled from the `android17-aptusitu` branch, and should work on stock MIUI/HyperOS as well as third-party AOSP-based ROMs for Android 11–17.  
 Feedback is welcome (via Issues or Pull Requests)! Coolapk users can join the discussion in [this post](https://www.coolapk.com/feed/69700122), you can also join my QQ group, or send me private feedback.  
@@ -143,6 +144,11 @@ Join ApartTUSITU's QQ Group: [700675046](https://qm.qq.com/q/Md7nXA3Toa)。
      bash build_kernel.sh TARGET_DEVICE TARGET_OS(省略为全部编译)
      ```
    - 使用 KernelSU:  
+   - 启用 Droidspaces (LXC/Docker 支持):  
+     需要安装 `coccinelle` (spatch)。  
+     ```
+     bash build_kernel.sh TARGET_DEVICE droidspaces TARGET_OS(省略为全部编译)
+     ```
      ```
      bash build_kernel.sh TARGET_DEVICE ksu TARGET_OS(省略为全部编译)
      ```
@@ -198,6 +204,11 @@ Join ApartTUSITU's QQ Group: [700675046](https://qm.qq.com/q/Md7nXA3Toa)。
      bash build_kernel.sh TARGET_DEVICE TARGET_OS(omit to build for all)
      ```
    - With KernelSU:  
+   - With Droidspaces (LXC/Docker support):  
+     Requires `coccinelle` (spatch) to be installed.  
+     ```
+     bash build_kernel.sh TARGET_DEVICE droidspaces TARGET_OS(omit to build for all)
+     ```
      ```
      bash build.sh TARGET_DEVICE ksu TARGET_OS(omit to build for all)
      ```
