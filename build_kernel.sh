@@ -286,6 +286,12 @@ build_target() {
     # ----------------------------------------------------
     # Compilation
     # ----------------------------------------------------
+    # Generate arch UAPI headers (asm/types.h et al) up front. scripts/mod's
+    # devicetable-offsets.s includes <asm/types.h> and in parallel builds it can
+    # be compiled before uapi-asm-generic wraps those headers, failing with
+    # "asm/types.h file not found". Pre-generating them avoids that race.
+    make "${MAKE_OPTS[@]}" uapi-asm-generic
+
     echo "[*] Building kernel..."
     make "${MAKE_OPTS[@]}" 
 
