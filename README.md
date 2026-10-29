@@ -28,7 +28,7 @@ This repository is based on [LineageOS/android_kernel_qcom_sm8250](https://githu
 
 ## 特性 / Features
 **中文:**  
-本内核支持 [ReSukiSU](https://github.com/ReSukiSU/ReSukiSU) & [SuSFS](https://gitlab.com/simonpunk/susfs4ksu)。请自行安装 ReSukiSU 的管理器。NoKernelSU 版本支持应用 Magisk 和 APatch(及他们的分支)。  
+本内核支持 [BakaSU](https://github.com/Baka-SU/BakaSU) & [SuSFS](https://gitlab.com/simonpunk/susfs4ksu) & [NoMount](https://github.com/maxsteeel/nomount)。请自行安装 BakaSU 的管理器。NoKernelSU 版本支持应用 Magisk 和 APatch(及他们的分支)。  
 
 **Release** 里的编译好的内核成品由 `android17-aptusitu` 分支编译，应当能在原版 MIUI/HyperOS 和第三方的基于 AOSP 的各种 Android11-17 的 ROM 上使用。欢迎大家尝试并反馈(提 Issue 或 Pull Requests)! 酷友们到 [这个帖子](https://www.coolapk.com/feed/69700122) 讨论或反馈，也可以加入 QQ 群，或者给我私信反馈!  
 
@@ -43,8 +43,8 @@ This repository is based on [LineageOS/android_kernel_qcom_sm8250](https://githu
 8. 集成 [BBG(Baseband-guard)](https://github.com/vc-teahouse/Baseband-guard)    
 
 **English:**  
-This kernel supports [ReSukiSU](https://github.com/ReSukiSU/ReSukiSU) & [SuSFS](https://gitlab.com/simonpunk/susfs4ksu).  
-Please install the ReSukiSU Manager by yourself.  
+This kernel supports [BakaSU](https://github.com/Baka-SU/BakaSU) & [SuSFS](https://gitlab.com/simonpunk/susfs4ksu) & [NoMount](https://github.com/maxsteeel/nomount).  
+Please install the BakaSU Manager by yourself.  
 The NoKernelSU version supports Magisk and APatch (and their forks).  
 
 The prebuilt kernel in the **Release** section is compiled from the `android17-aptusitu` branch, and should work on stock MIUI/HyperOS as well as third-party AOSP-based ROMs for Android 11–17.  
