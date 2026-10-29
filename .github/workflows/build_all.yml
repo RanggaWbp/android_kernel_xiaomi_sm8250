@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       publish_release:
-        description: 'Publish to GitHub Releases (是否发布到 GitHub Releases)'
+        description: 'Publish to GitHub Releases'
         required: true
         type: boolean
         default: true
@@ -97,7 +97,7 @@ jobs:
         with:
           name: APTKernel-${{ matrix.device }}-${{ matrix.ksu && 'KSU' || 'NoKSU' }}-${{ github.run_id }}
           path: APTKernel_*.zip
-          compression-level: 0 # 内核刷机包本身已是 zip 格式，无需二次压缩
+          compression-level: 0 # kernel flash zip is already zip format, no need for double compression
 
   release:
     name: Publish GitHub Release
@@ -130,17 +130,17 @@ jobs:
           tag_name: ${{ steps.vars.outputs.TAG_NAME }}
           name: "APTKernel Build - ${{ steps.vars.outputs.BUILD_DATE }} (${{ steps.vars.outputs.SHA_SHORT }})"
           body: |
-            ## 自动构建内核发布 / Automated Kernel Release
+            ## Automated Kernel Release
             
-            - **构建日期 / Build Date:** ${{ steps.vars.outputs.BUILD_DATE }}
-            - **提交哈希 / Commit SHA:** `${{ steps.vars.outputs.SHA_SHORT }}`
-            - **支持设备 / Supported Devices:** `alioth, apollo, cas, cmi, dagu, elish, enuma, lmi, munch, pipa, psyche, thyme, umi`
+            - **Build Date:** ${{ steps.vars.outputs.BUILD_DATE }}
+            - **Commit SHA:** `${{ steps.vars.outputs.SHA_SHORT }}`
+            - **Supported Devices:** `alioth, apollo, cas, cmi, dagu, elish, enuma, lmi, munch, pipa, psyche, thyme, umi`
             
             ---
-            ### 刷机包分类指南 / Flashable ZIP Instructions:
-            - **MIUI**: 适用于原厂 MIUI / HyperOS 或基于 MIUI 修改的第三方 ROM。
-            - **AOSP**: 适用于 LineageOS 等类原生 AOSP ROM。
-            - **BakaSU-SuSFS-NoMount**: 集成 BakaSU 与 SuSFS 和 NoMount。
-            - **Droidspaces**: 启用 LXC/Docker 容器支持 (可选，通过 droidspaces 输入开启)。
-            - **NoKernelSU**: 原版纯净内核，支持自行使用 Magisk 或 APatch 刷入。
+            ### Flashable ZIP Instructions:
+            - **MIUI**: for stock MIUI / HyperOS or MIUI-based third-party ROMs.
+            - **AOSP**: for AOSP-based ROMs like LineageOS.
+            - **BakaSU-SuSFS-NoMount**: integrates BakaSU with SuSFS and NoMount.
+            - **Droidspaces**: enables LXC/Docker container support (optional, via the droidspaces input).
+            - **NoKernelSU**: clean kernel, flash Magisk or APatch manually.
           files: all_kernels/*.zip

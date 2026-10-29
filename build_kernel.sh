@@ -302,7 +302,7 @@ build_target() {
         echo "[+] Kernel Image path: ${OUT_DIR}/arch/arm64/boot/Image"
 
         echo "[*] Packaging to AnyKernel3 ($OS_TYPE)..."
-        # 确保独立打包：清空现有的 kernels 目录
+        # ensure standalone packaging: clear existing kernels dir
         rm -rf anykernel/kernels/*
         mkdir -p "anykernel/kernels/${OS_TYPE}/"
         
@@ -313,7 +313,7 @@ build_target() {
             cp "${OUT_DIR}/arch/arm64/boot/dtbo.img" "anykernel/kernels/${OS_TYPE}/"
         fi
         
-        # 确定 ZIP 文件名
+        # determine ZIP filename
         local KSU_ZIP_STR="NoKernelSU"
         if [ "$ENABLE_KSU" -eq 1 ]; then
             KSU_ZIP_STR="BakaSU-SuSFS-NoMount"

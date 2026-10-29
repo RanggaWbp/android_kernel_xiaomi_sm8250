@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       device:
-        description: 'Target Device Code (设备代号)'
+        description: 'Target Device Code'
         required: true
         default: 'lmi'
         type: choice
@@ -33,7 +33,7 @@ on:
         type: boolean
         default: false
       target_os:
-        description: 'Target OS (目标系统)'
+        description: 'Target OS'
         required: true
         type: choice
         default: 'both'
@@ -104,4 +104,4 @@ jobs:
       with:
         name: APTKernel-${{ github.event.inputs.device }}-${{ github.event.inputs.target_os }}-${{ github.run_id }}
         path: APTKernel_*.zip
-        compression-level: 0 # 已经被 zip 压缩过，无需再二次压缩
+        compression-level: 0 # already zip-compressed, no need to re-compress
