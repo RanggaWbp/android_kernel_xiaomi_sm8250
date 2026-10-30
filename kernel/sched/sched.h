@@ -1117,6 +1117,10 @@ struct rq {
 #ifdef CONFIG_SMP
 	struct llist_head	wake_list;
 #endif
+#ifdef CONFIG_SCHED_POC_SELECTOR
+	unsigned int		poc_idle_committed;
+	u64			poc_busy_bit;	/* lazy commit: pre-shifted busy bit (0 = idle) */
+#endif
 
 #ifdef CONFIG_CPU_IDLE
 	/* Must be inspected within a rcu lock section */
@@ -1639,6 +1643,8 @@ static inline struct task_group *task_group(struct task_struct *p)
 }
 
 #endif /* CONFIG_CGROUP_SCHED */
+
+#include "poc_selector.h"
 
 static inline void __set_task_cpu(struct task_struct *p, unsigned int cpu)
 {

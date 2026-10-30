@@ -843,7 +843,7 @@ static u64 sched_vslice(struct cfs_rq *cfs_rq, struct sched_entity *se)
 #include "pelt.h"
 #ifdef CONFIG_SMP
 
-static int select_idle_sibling(struct task_struct *p, int prev_cpu, int cpu);
+static int select_idle_sibling(struct task_struct *p, int prev_cpu, int cpu, int sync);
 static unsigned long task_h_load(struct task_struct *p);
 static unsigned long capacity_of(int cpu);
 
@@ -1892,7 +1892,7 @@ assign:
 		 */
 		local_irq_disable();
 		env->dst_cpu = select_idle_sibling(env->p, env->src_cpu,
-						   env->dst_cpu);
+						   env->dst_cpu, 0);
 		local_irq_enable();
 	}
 
@@ -5719,11 +5719,20 @@ static void set_next_buddy(struct sched_entity *se);
  * decreased. We remove the task from the rbtree and
  * update the fair scheduling stats:
  */
+#ifdef CONFIG_SCHED_POC_SELECTOR
+#include "poc_sync.h"
+#endif
+
 static void dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 {
 	struct cfs_rq *cfs_rq;
 	struct sched_entity *se = &p->se;
 	int task_sleep = flags & DEQUEUE_SLEEP;
+
+#ifdef CONFIG_SCHED_POC_SELECTOR
+	if (flags & DEQUEUE_SLEEP)
+		poc_sync_note_sleep(rq, p);
+#endif
 
 #ifdef CONFIG_SCHED_BORE
 	if (task_sleep) {
@@ -6793,10 +6802,62 @@ static int select_idle_cpu(struct task_struct *p, struct sched_domain *sd, int t
 /*
  * Try and locate an idle core/thread in the LLC cache domain.
  */
-static int select_idle_sibling(struct task_struct *p, int prev, int target)
+#ifdef CONFIG_SCHED_SMT
+static inline bool is_idle_core(int cpu)
+{
+	int sibling;
+
+	for_each_cpu(sibling, cpu_smt_mask(cpu)) {
+		if (!available_idle_cpu(sibling) || cpu_isolated(sibling))
+			return false;
+	}
+	return true;
+}
+#else
+static inline bool is_idle_core(int cpu)
+{
+	return available_idle_cpu(cpu) && !cpu_isolated(cpu);
+}
+#endif
+
+#ifdef CONFIG_SCHED_POC_SELECTOR
+#include "poc_selector.c"
+#endif
+
+/*
+ * Try and locate an idle core/thread in the LLC cache domain.
+ */
+static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
 {
 	struct sched_domain *sd;
 	int i, recent_used_cpu;
+
+	/* Check a recently used CPU as a potential idle candidate: */
+	recent_used_cpu = p->recent_used_cpu;
+	p->recent_used_cpu = prev;
+	if (recent_used_cpu != prev &&
+	    recent_used_cpu != target &&
+	    cpus_share_cache(recent_used_cpu, target) &&
+	    available_idle_cpu(recent_used_cpu) &&
+	    cpumask_test_cpu(recent_used_cpu, &p->cpus_allowed)) {
+#ifdef CONFIG_SCHED_POC_SELECTOR
+		if (poc_sync_recent_ok())
+#endif
+			if ((unsigned int)recent_used_cpu < nr_cpumask_bits &&
+			    is_idle_core(recent_used_cpu))
+				return recent_used_cpu;
+	} else {
+		recent_used_cpu = -1;
+	}
+
+#ifdef CONFIG_SCHED_POC_SELECTOR
+	if (static_branch_likely(&poc_selector_active) &&
+	    is_idle_core(target)) {
+		poc_count(POC_LV1T);
+		poc_commit_cpu(target);
+		return target;
+	}
+#endif
 
 	if (available_idle_cpu(target) && !cpu_isolated(target))
 		return target;
@@ -6808,24 +6869,21 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
 			available_idle_cpu(prev) && !cpu_isolated(prev))
 		return prev;
 
-	/* Check a recently used CPU as a potential idle candidate: */
-	recent_used_cpu = p->recent_used_cpu;
-	if (recent_used_cpu != prev &&
-	    recent_used_cpu != target &&
-	    cpus_share_cache(recent_used_cpu, target) &&
-	    available_idle_cpu(recent_used_cpu) &&
-	    cpumask_test_cpu(p->recent_used_cpu, &p->cpus_allowed)) {
-		/*
-		 * Replace recent_used_cpu with prev as it is a potential
-		 * candidate for the next wake:
-		 */
-		p->recent_used_cpu = prev;
-		return recent_used_cpu;
-	}
-
 	sd = rcu_dereference(per_cpu(sd_llc, target));
 	if (!sd)
 		return target;
+
+#ifdef CONFIG_SCHED_POC_SELECTOR
+	{
+		int poc_cpu = poc_select_idle_sibling(p, prev, target,
+						      recent_used_cpu);
+
+		if (likely(poc_cpu >= 0))
+			return poc_cpu;
+		if (unlikely(poc_cpu == -2))
+			goto give_up;
+	}
+#endif
 
 	i = select_idle_core(p, sd, target);
 	if ((unsigned)i < nr_cpumask_bits)
@@ -6839,6 +6897,10 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
 	if ((unsigned)i < nr_cpumask_bits)
 		return i;
 
+#ifdef CONFIG_SCHED_POC_SELECTOR
+give_up:
+	target = poc_last_resort(prev, target);
+#endif
 	return target;
 }
 
@@ -8114,7 +8176,12 @@ sd_loop:
 	} else if (sd_flag & SD_BALANCE_WAKE) { /* XXX always ? */
 		/* Fast path */
 
-		new_cpu = select_idle_sibling(p, prev_cpu, new_cpu);
+#ifdef CONFIG_SCHED_POC_SELECTOR
+		if (static_branch_likely(&poc_selector_active))
+			new_cpu = poc_select_wake_cpu(p, prev_cpu, new_cpu, sync);
+		else
+#endif
+		new_cpu = select_idle_sibling(p, prev_cpu, new_cpu, sync);
 
 		if (want_affine)
 			current->recent_used_cpu = cpu;
@@ -8280,6 +8347,11 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int wake_
 	struct cfs_rq *cfs_rq = task_cfs_rq(curr);
 	int scale = cfs_rq->nr_running >= sched_nr_latency;
 	int next_buddy_marked = 0;
+
+#ifdef CONFIG_SCHED_POC_SELECTOR
+	if (poc_sync_wakee_waits(rq, curr, p, wake_flags))
+		return;
+#endif
 
 	if (unlikely(se == pse))
 		return;

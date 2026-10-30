@@ -3083,6 +3083,10 @@ static void __sched_fork(unsigned long clone_flags, struct task_struct *p)
 	p->se.prev_sum_exec_runtime	= 0;
 	p->se.nr_migrations		= 0;
 	p->se.vruntime			= 0;
+#ifdef CONFIG_SCHED_POC_SELECTOR
+	/* no history yet: treat the new task's sync wakes as lies until proven */
+	p->poc_sync = POC_SYNC_INIT;
+#endif
 #ifdef CONFIG_SCHED_BORE
 	sched_fork_bore(p);
 #endif // CONFIG_SCHED_BORE
@@ -5058,6 +5062,7 @@ int idle_cpu(int cpu)
 
 	return 1;
 }
+EXPORT_SYMBOL_GPL(idle_cpu);
 
 /**
  * available_idle_cpu - is a given CPU idle for enqueuing work.
