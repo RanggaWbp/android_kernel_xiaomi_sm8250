@@ -1022,6 +1022,12 @@ static __always_inline int select_idle_cpu_poc(int target, int prev,
 	int rct_bit = recent - base;
 	int tgt_bit = target - base;
 	int prv_bit = prev   - base;
+	u64 affinity;
+	u64 cpu_mask;
+	int level_offset = 0;
+#ifdef CONFIG_SCHED_SMT
+	u64 core_mask __maybe_unused;
+#endif
 	/*
 	 * Waker-yield handoff (sysctl kernel.sched_poc_waker_yield).
 	 *
@@ -1050,12 +1056,6 @@ static __always_inline int select_idle_cpu_poc(int target, int prev,
 
 	/* lazy commit: refresh the shared busy mask from pending transitions */
 	poc_aggregate(sd_share);
-#ifdef CONFIG_SCHED_SMT
-	u64 core_mask __maybe_unused;
-#endif
-	u64 affinity;
-	u64 cpu_mask;
-	int level_offset = 0;
 
 #ifdef CONFIG_SCHED_SMT
 	/* SMT fallback: bail to CFS for SMT sibling selection */
