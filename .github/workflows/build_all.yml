@@ -95,8 +95,8 @@ jobs:
       - name: Upload Kernel Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: APTKernel-${{ matrix.device }}-${{ matrix.ksu && 'KSU' || 'NoKSU' }}-${{ github.run_id }}
-          path: APTKernel_*.zip
+          name: TanpaNama-${{ matrix.device }}-${{ matrix.ksu && 'KSU' || 'NoKSU' }}-${{ github.run_id }}
+          path: TanpaNama_*.zip
           compression-level: 0 # kernel flash zip is already zip format, no need for double compression
 
   release:
@@ -121,14 +121,14 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: all_kernels
-          pattern: APTKernel-*-${{ github.run_id }}
+          pattern: TanpaNama-*-${{ github.run_id }}
           merge-multiple: true
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.vars.outputs.TAG_NAME }}
-          name: "APTKernel Build - ${{ steps.vars.outputs.BUILD_DATE }} (${{ steps.vars.outputs.SHA_SHORT }})"
+          name: "TanpaNama Build - ${{ steps.vars.outputs.BUILD_DATE }} (${{ steps.vars.outputs.SHA_SHORT }})"
           body: |
             ## Automated Kernel Release
             

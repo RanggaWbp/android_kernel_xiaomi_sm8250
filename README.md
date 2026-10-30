@@ -28,6 +28,7 @@ Please install the BakaSU Manager by yourself.
 The NoKernelSU version supports Magisk and APatch (and their forks).  
 Droidspaces (LXC/Docker container support) can be enabled as an optional build flag.  
 BORE is always enabled (`CONFIG_SCHED_BORE=y`) to improve UI responsiveness under heavy background load.
+NTSYNC (emulation of Windows NT synchronization primitives, e.g. for Wine/Proton) is enabled as a module, and BBRv3 is the default TCP congestion control (`CONFIG_DEFAULT_TCP_CONG="bbr3"`).
 
 The prebuilt kernel in the **Release** section is compiled from the `android17-aptusitu` branch, and should work on stock MIUI/HyperOS as well as third-party AOSP-based ROMs for Android 11–17.  
 Feedback is welcome (via Issues or Pull Requests)! Coolapk users can join the discussion in [this post](https://www.coolapk.com/feed/69700122), you can also join my QQ group, or send me private feedback.
@@ -43,6 +44,8 @@ Below are some of the key features:
 7. Fixes [the issue where the battery percentage gets stuck at 1%](https://github.com/liyafe1997/Xiaomi-fix-battery-one-percent), and supports recognizing higher-capacity replacement batteries
 8. Integrate [BBG(Baseband-guard)](https://github.com/vc-teahouse/Baseband-guard)
 9. [BORE](https://github.com/firelzrd/bore-scheduler) scheduler for burst-based task prioritization
+10. NTSYNC: emulation of Windows NT synchronization primitives (e.g. for Wine/Proton) as a module
+11. BBRv3 TCP congestion control, set as the default (`CONFIG_DEFAULT_TCP_CONG="bbr3"`)
 
 ---
 
