@@ -207,6 +207,13 @@ build_target() {
     echo "[*] Making defconfig: ${DEFCONFIG}..."
     make "${MAKE_OPTS[@]}" "${DEFCONFIG}"
 
+    # BBRv3 TCP congestion control (default)
+    echo "[*] Injecting BBRv3 TCP configuration..."
+    scripts/config --file "${OUT_DIR}/.config" \
+        -e TCP_CONG_ADVANCED \
+        -e TCP_CONG_BBR3 \
+        --set-str DEFAULT_TCP_CONG bbr3
+
     # ----------------------------------------------------
     # Configuration tweaks
     # ----------------------------------------------------
