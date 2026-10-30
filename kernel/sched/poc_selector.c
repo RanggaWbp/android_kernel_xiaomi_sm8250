@@ -1045,11 +1045,12 @@ static __always_inline int select_idle_cpu_poc(int target, int prev,
 			POC_RETURN(waker_cpu, POC_LV0W);
 	}
 
-	/* lazy commit: refresh the shared busy mask from pending transitions */
-	poc_aggregate(sd_share);
 	int rct_bit = recent - base;
 	int tgt_bit = target - base;
 	int prv_bit = prev   - base;
+
+	/* lazy commit: refresh the shared busy mask from pending transitions */
+	poc_aggregate(sd_share);
 #ifdef CONFIG_SCHED_SMT
 	u64 core_mask __maybe_unused;
 #endif
@@ -1290,8 +1291,11 @@ void poc_sd_shared_init(struct sched_domain *sd, int sd_id)
 			}
 			atomic64_set(&sd->shared->poc_busy_mask, busy);
 		}
-		for (int pi = 0; pi < 8; pi++)
-			atomic_set(&sd->shared->poc_pending[pi], 0);
+		{
+			int pi;
+			for (pi = 0; pi < 8; pi++)
+				atomic_set(&sd->shared->poc_pending[pi], 0);
+		}
 	}
 
 #ifdef CONFIG_SCHED_SMT
@@ -1512,8 +1516,11 @@ static void poc_rebuild_all_llcs_busy(void)
 			members &= members - 1;
 		}
 		atomic64_set(&sd_share->poc_busy_mask, busy);
-		for (int pi = 0; pi < 8; pi++)
-			atomic_set(&sd_share->poc_pending[pi], 0);
+		{
+			int pi;
+			for (pi = 0; pi < 8; pi++)
+				atomic_set(&sd_share->poc_pending[pi], 0);
+		}
 		rcu_read_unlock();
 	}
 }
@@ -1620,7 +1627,7 @@ void poc_check_skip_fallback(void)
 #ifdef CONFIG_SYSCTL
 static int poc_zero;
 static int poc_one = 1;
-static int sched_poc_sysctl_handler(const struct ctl_table *table, int write,
+static int sched_poc_sysctl_handler(struct ctl_table *table, int write,
 				    void *buffer, size_t *lenp, loff_t *ppos)
 {
 	unsigned int val = sched_poc_selector ? 1 : 0;
@@ -1641,7 +1648,7 @@ static int sched_poc_sysctl_handler(const struct ctl_table *table, int write,
 	return ret;
 }
 
-static int sched_poc_smt_fallback_sysctl_handler(const struct ctl_table *table,
+static int sched_poc_smt_fallback_sysctl_handler(struct ctl_table *table,
 					       int write, void *buffer,
 					       size_t *lenp, loff_t *ppos)
 {
@@ -1663,7 +1670,7 @@ static int sched_poc_smt_fallback_sysctl_handler(const struct ctl_table *table,
 	return ret;
 }
 
-static int sched_poc_rr_improved_sysctl_handler(const struct ctl_table *table,
+static int sched_poc_rr_improved_sysctl_handler(struct ctl_table *table,
 					     int write, void *buffer,
 					     size_t *lenp, loff_t *ppos)
 {
@@ -1685,7 +1692,7 @@ static int sched_poc_rr_improved_sysctl_handler(const struct ctl_table *table,
 	return ret;
 }
 
-static int sched_poc_target_sticky_sysctl_handler(const struct ctl_table *table,
+static int sched_poc_target_sticky_sysctl_handler(struct ctl_table *table,
 					       int write, void *buffer,
 					       size_t *lenp, loff_t *ppos)
 {
@@ -1707,7 +1714,7 @@ static int sched_poc_target_sticky_sysctl_handler(const struct ctl_table *table,
 	return ret;
 }
 
-static int sched_poc_greedy_search_handler(const struct ctl_table *table,
+static int sched_poc_greedy_search_handler(struct ctl_table *table,
 					       int write, void *buffer,
 					       size_t *lenp, loff_t *ppos)
 {
@@ -1729,7 +1736,7 @@ static int sched_poc_greedy_search_handler(const struct ctl_table *table,
 	return ret;
 }
 
-static int sched_poc_count_sysctl_handler(const struct ctl_table *table,
+static int sched_poc_count_sysctl_handler(struct ctl_table *table,
 					  int write, void *buffer,
 					  size_t *lenp, loff_t *ppos)
 {
@@ -1751,7 +1758,7 @@ static int sched_poc_count_sysctl_handler(const struct ctl_table *table,
 	return ret;
 }
 
-static int sched_poc_waker_yield_handler(const struct ctl_table *table,
+static int sched_poc_waker_yield_handler(struct ctl_table *table,
 					 int write, void *buffer,
 					 size_t *lenp, loff_t *ppos)
 {
