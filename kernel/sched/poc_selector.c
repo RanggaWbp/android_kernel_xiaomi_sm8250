@@ -1019,9 +1019,9 @@ static __always_inline int select_idle_cpu_poc(int target, int prev,
 	const struct cpumask *allowed)
 {
 	int base = sd_share->poc_cpu_base;
-	int rct_bit = recent - base;
-	int tgt_bit = target - base;
-	int prv_bit = prev   - base;
+	int rct_bit __maybe_unused = recent - base;
+	int tgt_bit __maybe_unused = target - base;
+	int prv_bit __maybe_unused = prev   - base;
 	u64 affinity;
 	u64 cpu_mask;
 	int level_offset = 0;
