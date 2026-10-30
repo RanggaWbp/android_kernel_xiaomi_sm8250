@@ -27,6 +27,9 @@
 #include <net/ping.h>
 #include <net/protocol.h>
 #include <net/netevent.h>
+#ifndef __GENKSYMS__
+#include <net/netns/generic.h>
+#endif
 
 static int zero;
 static int one = 1;
@@ -49,6 +52,123 @@ static int tcp_syn_retries_min = 1;
 static int tcp_syn_retries_max = MAX_TCP_SYNCNT;
 static int ip_ping_group_range_min[] = { 0, 0 };
 static int ip_ping_group_range_max[] = { GID_T_MAX, GID_T_MAX };
+static int tcp_plb_max_rounds = 31;
+static int tcp_plb_max_cong_thresh = 256;
+static int tcp_plb_zero = 0;
+static int tcp_plb_one = 1;
+unsigned int tcp_plb_net_id __read_mostly;
+
+struct tcp_plb_net_context *tcp_get_plb_ctx(struct net *net)
+{
+	return net_generic(net, tcp_plb_net_id);
+}
+EXPORT_SYMBOL_GPL(tcp_get_plb_ctx);
+
+static struct ctl_table plb_ctl_table_template[] = {
+	{
+		.procname       = "tcp_plb_enabled",
+		.maxlen         = sizeof(unsigned int),
+		.mode           = 0644,
+		.proc_handler   = proc_douintvec_minmax,
+		.extra1         = &tcp_plb_zero,
+		.extra2         = &tcp_plb_one,
+	},
+	{
+		.procname       = "tcp_plb_idle_rehash_rounds",
+		.maxlen         = sizeof(unsigned int),
+		.mode           = 0644,
+		.proc_handler   = proc_douintvec_minmax,
+		.extra2			= &tcp_plb_max_rounds,
+	},
+	{
+		.procname       = "tcp_plb_rehash_rounds",
+		.maxlen         = sizeof(unsigned int),
+		.mode           = 0644,
+		.proc_handler   = proc_douintvec_minmax,
+		.extra2         = &tcp_plb_max_rounds,
+	},
+	{
+		.procname       = "tcp_plb_suspend_rto_sec",
+		.maxlen         = sizeof(unsigned int),
+		.mode           = 0644,
+		.proc_handler   = proc_douintvec_minmax,
+	},
+	{
+		.procname       = "tcp_plb_cong_thresh",
+		.maxlen         = sizeof(int),
+		.mode           = 0644,
+		.proc_handler   = proc_dointvec_minmax,
+		.extra1         = &tcp_plb_zero,
+		.extra2         = &tcp_plb_max_cong_thresh,
+	},
+	{ }
+};
+
+static int __net_init plb_net_init(struct net *net)
+{
+	struct tcp_plb_net_context *ctx;
+	struct ctl_table *table;
+	int i;
+
+	ctx = tcp_get_plb_ctx(net);
+	if (!ctx)
+		return -ENOMEM;
+	
+	ctx->params.sysctl_tcp_plb_enabled = 0;
+	ctx->params.sysctl_tcp_plb_idle_rehash_rounds = tcp_plb_max_rounds;
+	ctx->params.sysctl_tcp_plb_rehash_rounds = tcp_plb_max_rounds;
+	ctx->params.sysctl_tcp_plb_suspend_rto_sec = 0;
+	ctx->params.sysctl_tcp_plb_cong_thresh = tcp_plb_max_cong_thresh;
+
+	table = kmemdup(plb_ctl_table_template, sizeof(plb_ctl_table_template), GFP_KERNEL);
+	if (!table) {
+		return -ENOMEM;
+	}
+
+	for (i = 0; table[i].procname; i++) {
+		if (strcmp(table[i].procname, "tcp_plb_enabled") == 0)
+			table[i].data = &ctx->params.sysctl_tcp_plb_enabled;
+		else if (strcmp(table[i].procname, "tcp_plb_idle_rehash_rounds") == 0)
+			table[i].data = &ctx->params.sysctl_tcp_plb_idle_rehash_rounds;
+		else if (strcmp(table[i].procname, "tcp_plb_rehash_rounds") == 0)
+			table[i].data = &ctx->params.sysctl_tcp_plb_rehash_rounds;
+		else if (strcmp(table[i].procname, "tcp_plb_suspend_rto_sec") == 0)
+			table[i].data = &ctx->params.sysctl_tcp_plb_suspend_rto_sec;
+		else if (strcmp(table[i].procname, "tcp_plb_cong_thresh") == 0)
+			table[i].data = &ctx->params.sysctl_tcp_plb_cong_thresh;
+	}
+
+	ctx->sysctl_header = register_net_sysctl(net, "net/ipv4", table);
+	if (!ctx->sysctl_header) {
+		kfree(table);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static void __net_exit plb_net_exit(struct net *net)
+{
+	struct tcp_plb_net_context *ctx = tcp_get_plb_ctx(net);
+	struct ctl_table *table;
+
+	if (!ctx)
+		return;
+
+	if (ctx->sysctl_header) {
+		table = ctx->sysctl_header->ctl_table_arg;
+		unregister_net_sysctl_table(ctx->sysctl_header);
+		kfree(table);
+	}
+}
+
+static struct pernet_operations plb_net_ops = {
+	.init = plb_net_init,
+	.exit = plb_net_exit,
+	.id   = &tcp_plb_net_id,
+	.size = sizeof(struct tcp_plb_net_context),
+};
+
 static int comp_sack_nr_max = 255;
 static u32 u32_max_div_HZ = UINT_MAX / HZ;
 static int one_day_secs = 24 * 3600;
@@ -1286,6 +1406,12 @@ static __init int sysctl_ipv4_init(void)
 		return -ENOMEM;
 
 	if (register_pernet_subsys(&ipv4_sysctl_ops)) {
+		unregister_net_sysctl_table(hdr);
+		return -ENOMEM;
+	}
+
+	if (register_pernet_subsys(&plb_net_ops)) {
+		unregister_pernet_subsys(&ipv4_sysctl_ops);
 		unregister_net_sysctl_table(hdr);
 		return -ENOMEM;
 	}
