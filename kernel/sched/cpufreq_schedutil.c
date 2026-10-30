@@ -1462,3 +1462,62 @@ static int __init sugov_register(void)
 	return cpufreq_register_governor(&schedutil_gov);
 }
 fs_initcall(sugov_register);
+
+/*************** Exported helpers for external cpufreq governors ***************/
+
+/**
+ * cpufreq_get_capacity_ref_freq - Get the reference frequency for capacity
+ * scaling of a given cpufreq policy.
+ * @policy: the cpufreq policy of the CPU in question.
+ *
+ * Return: the reference CPU frequency.
+ */
+unsigned long cpufreq_get_capacity_ref_freq(struct cpufreq_policy *policy)
+{
+	return arch_scale_freq_invariant() ? policy->cpuinfo.max_freq : policy->cur;
+}
+EXPORT_SYMBOL_GPL(cpufreq_get_capacity_ref_freq);
+
+/**
+ * cpufreq_get_effective_util - Get effective CPU utilization for frequency
+ * scaling, combining all scheduling classes and applying DVFS headroom.
+ * @cpu: the CPU number.
+ * @boost: additional utilization boost (e.g. from IO wait).
+ * @out_util: pointer to store the effective utilization (with DVFS headroom).
+ * @out_bw_min: pointer to store the minimum bandwidth requirement.
+ * @out_bw_max: pointer to store the maximum (allowed) performance level,
+ *	as required by cpufreq_driver_adjust_perf().
+ */
+void cpufreq_get_effective_util(int cpu, unsigned long boost,
+				unsigned long *out_util,
+				unsigned long *out_bw_min,
+				unsigned long *out_bw_max)
+{
+	struct rq *rq = cpu_rq(cpu);
+	unsigned long max = arch_scale_cpu_capacity(NULL, cpu);
+	unsigned long util;
+#ifdef CONFIG_SCHED_WALT
+	util = stune_util(cpu, 0, &per_cpu(sugov_cpu, cpu).walt_load);
+#else
+	util = schedutil_cpu_util(cpu, cpu_util_cfs(rq), max,
+				  FREQUENCY_UTIL, NULL);
+#endif
+	util = min(max, util + boost);
+	*out_bw_min = cpu_bw_dl(rq);
+	*out_bw_max = max;
+	*out_util = util;
+}
+EXPORT_SYMBOL_GPL(cpufreq_get_effective_util);
+
+/**
+ * cpufreq_cpu_dl_bw_exceeded - Check if DL bandwidth exceeds minimum.
+ * @cpu: the CPU number.
+ * @bw_min: the minimum bandwidth to compare against.
+ *
+ * Return: true if the deadline bandwidth of @cpu exceeds @bw_min.
+ */
+bool cpufreq_cpu_dl_bw_exceeded(int cpu, unsigned long bw_min)
+{
+	return cpu_bw_dl(cpu_rq(cpu)) > bw_min;
+}
+EXPORT_SYMBOL_GPL(cpufreq_cpu_dl_bw_exceeded);
