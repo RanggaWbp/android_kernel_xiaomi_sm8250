@@ -1013,7 +1013,7 @@ static void tcp_sum_lost(struct tcp_sock *tp, struct sk_buff *skb)
 		tp->lost += tcp_skb_pcount(skb);
 		ca_ops = inet_csk(sk)->icsk_ca_ops;
 		if (ca_ops && !strcmp(ca_ops->name, "bbr3")) {
-			bbr3 = inet_csk_ca(sk);
+			bbr3 = *(struct bbr3 **)inet_csk_ca(sk);
 			if (bbr3 && bbr3->skb_marked_lost)
 				bbr3->skb_marked_lost(sk, skb);
 		}
