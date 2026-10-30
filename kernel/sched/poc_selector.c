@@ -1019,6 +1019,9 @@ static __always_inline int select_idle_cpu_poc(int target, int prev,
 	const struct cpumask *allowed)
 {
 	int base = sd_share->poc_cpu_base;
+	int rct_bit = recent - base;
+	int tgt_bit = target - base;
+	int prv_bit = prev   - base;
 	/*
 	 * Waker-yield handoff (sysctl kernel.sched_poc_waker_yield).
 	 *
@@ -1044,10 +1047,6 @@ static __always_inline int select_idle_cpu_poc(int target, int prev,
 			__this_cpu_read(poc_sync_verdict) != POC_SYNC_NO)
 			POC_RETURN(waker_cpu, POC_LV0W);
 	}
-
-	int rct_bit = recent - base;
-	int tgt_bit = target - base;
-	int prv_bit = prev   - base;
 
 	/* lazy commit: refresh the shared busy mask from pending transitions */
 	poc_aggregate(sd_share);
