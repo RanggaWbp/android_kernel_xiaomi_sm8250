@@ -1026,7 +1026,7 @@ static struct adios_rq_data *get_dl_first_rd(struct adios_data *ad, bool idx) {
 
 // Comparison function for sorting requests by block address
 static int cmp_rq_pos(void *priv,
-		const struct list_head *a, const struct list_head *b) {
+		struct list_head *a, struct list_head *b) {
 	struct request *rq_a = list_entry(a, struct request, queuelist);
 	struct request *rq_b = list_entry(b, struct request, queuelist);
 	u64 pos_a = blk_rq_pos(rq_a);
@@ -1965,22 +1965,24 @@ static struct elv_fs_entry adios_sched_attrs[] = {
 // Define the ADIOS scheduler type
 static struct elevator_type mq_adios = {
 	.ops = {
-		.next_request		= elv_rb_latter_request,
-		.former_request		= elv_rb_former_request,
-		.limit_depth		= adios_limit_depth,
-		.depth_updated		= adios_depth_updated,
-		.request_merged		= adios_request_merged,
-		.requests_merged	= adios_merged_requests,
-		.bio_merge			= adios_bio_merge,
-		.insert_requests	= adios_insert_requests,
-		.prepare_request	= adios_prepare_request,
-		.dispatch_request	= adios_dispatch_request,
-		.completed_request	= adios_completed_request,
-		.finish_request		= adios_finish_request,
-		.has_work			= adios_has_work,
-		.init_hctx			= adios_init_hctx,
-		.init_sched			= adios_init_sched,
-		.exit_sched			= adios_exit_sched,
+		.mq = {
+			.next_request	= elv_rb_latter_request,
+			.former_request	= elv_rb_former_request,
+			.limit_depth	= adios_limit_depth,
+			.depth_updated	= adios_depth_updated,
+			.request_merged	= adios_request_merged,
+			.requests_merged = adios_merged_requests,
+			.bio_merge	= adios_bio_merge,
+			.insert_requests	= adios_insert_requests,
+			.prepare_request	= adios_prepare_request,
+			.dispatch_request	= adios_dispatch_request,
+			.completed_request	= adios_completed_request,
+			.finish_request	= adios_finish_request,
+			.has_work	= adios_has_work,
+			.init_hctx	= adios_init_hctx,
+			.init_sched	= adios_init_sched,
+			.exit_sched	= adios_exit_sched,
+		},
 	},
 	.elevator_attrs = adios_sched_attrs,
 	.elevator_name = "adios",

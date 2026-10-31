@@ -24,7 +24,7 @@ obj-$(CONFIG_IOSCHED_CFQ)	+= cfq-iosched.o
 obj-$(CONFIG_MQ_IOSCHED_DEADLINE)	+= mq-deadline.o
 obj-$(CONFIG_MQ_IOSCHED_KYBER)	+= kyber-iosched.o
 obj-$(CONFIG_MQ_IOSCHED_ADIOS)	+= adios.o
-CFLAGS_adios.o += -std=gnu11
+CFLAGS_adios.o += -std=gnu11 -Wno-declaration-after-statement -Wno-incompatible-function-pointer-types
 bfq-y				:= bfq-iosched.o bfq-wf2q.o bfq-cgroup.o
 obj-$(CONFIG_IOSCHED_BFQ)	+= bfq.o
 
