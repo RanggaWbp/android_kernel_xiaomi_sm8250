@@ -47,6 +47,7 @@
 #include <linux/kthread.h>
 #include <linux/ktime.h>
 #include <linux/math64.h>
+#include <linux/mutex.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/sched/cpufreq.h>
@@ -114,7 +115,7 @@ struct rfx_policy {
 	/* The next fields are only needed if fast switch cannot be used: */
 	struct			irq_work irq_work;
 	struct			kthread_work work;
-	struct			mutexex_lock;
+	struct				mutex work_lock;
 	struct			kthread_worker worker;
 	struct task_struct	*thread;
 	bool			work_in_progress;
@@ -769,7 +770,7 @@ static void rfx_tunables_free(struct kobject *kobj)
 	kfree(to_rfx_tunables(attr_set));
 }
 
-static const struct kobj_type rfx_tunables_ktype = {
+static struct kobj_type rfx_tunables_ktype = {
 	.default_groups = rfx_groups,
 	.sysfs_ops = &governor_sysfs_ops,
 	.release = &rfx_tunables_free,
