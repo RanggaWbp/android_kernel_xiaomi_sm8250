@@ -37,7 +37,7 @@ Below are some of the key features:
 
 1. F2FS with realtime discard enabled for improved flash TRIM behavior
 2. Support for EROFS
-3. zRAM with support for multiple compression algorithms, including LZO, LZ4, LZ4HC, and ZSTD, enabled ZRAM_WRITEBACK, upgraded LZ4 and ZSTD
+3. zRAM with support for multiple compression algorithms, including LZO, LZ4, LZ4HC, LZ4KDR, and ZSTD, enabled ZRAM_WRITEBACK, upgraded LZ4 and ZSTD
 4. Backported BPF from Linux 5.15 and clone3 (Android 16/17 compatible)
 5. Introduced [LE9EC](https://github.com/hakavlad/le9-patch) to optimize memory
 6. Backported Binder from 5.10; MIUI builds incorporate millet from xaga, while AOSP builds incorporate [Re:Kernel](https://github.com/Sakion-Team/Re-Kernel)
@@ -50,6 +50,7 @@ Below are some of the key features:
 13. [reflex](https://github.com/firelzrd/reflex) cpufreq governor (v0.4.0), built-in (`CONFIG_CPU_FREQ_GOV_REFLEX=y`)
 14. [cambyses](https://github.com/firelzrd/cambyses) CFS load-balancer modification (v0.6.0), built-in
 15. [ADIOS](https://github.com/firelzrd/adios) (Adaptive Deadline I/O Scheduler, v3.3.0), set as the default MQ I/O scheduler (`CONFIG_MQ_IOSCHED_DEFAULT_ADIOS=y`)
+16. [LZ4KDR](https://github.com/firelzrd/zram-ir) (speed-tuned LZ4KD derivative, v1.3) compression for zRAM, available via crypto API (`CONFIG_CRYPTO_LZ4KDR=y`) — not the default compressor
 
 ---
 
