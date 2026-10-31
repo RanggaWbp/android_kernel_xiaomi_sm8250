@@ -97,11 +97,14 @@ jobs:
         run: |
           if [ -f .bakasu_version ]; then
             BAKASU_VERSION=$(cat .bakasu_version)
+            BAKASU_VERSION_CODE=$(cat .bakasu_version_code 2>/dev/null || echo "unknown")
             echo "BAKASU_VERSION=$BAKASU_VERSION" >> $GITHUB_OUTPUT
-            echo "$BAKASU_VERSION" > "bakasu_version_${{ matrix.device }}_${{ matrix.ksu && 'ksu' || 'noksu' }}.txt"
-            echo "BakaSU version: $BAKASU_VERSION"
+            echo "BAKASU_VERSION_CODE=$BAKASU_VERSION_CODE" >> $GITHUB_OUTPUT
+            echo "BakaSU v$BAKASU_VERSION_CODE ($BAKASU_VERSION)" > "bakasu_version_${{ matrix.device }}_${{ matrix.ksu && 'ksu' || 'noksu' }}.txt"
+            echo "BakaSU version: $BAKASU_VERSION (code $BAKASU_VERSION_CODE)"
           else
             echo "BAKASU_VERSION=not enabled" >> $GITHUB_OUTPUT
+            echo "BAKASU_VERSION_CODE=not enabled" >> $GITHUB_OUTPUT
           fi
 
       - name: Upload Kernel Artifacts
@@ -164,7 +167,7 @@ jobs:
             
             - **Build Date:** ${{ steps.vars.outputs.BUILD_DATE }}
             - **Commit SHA:** `${{ steps.vars.outputs.SHA_SHORT }}`
-            - **BakaSU Version:** ${{ steps.bakasu_release.outputs.BAKASU_VERSIONS }}
+            - **BakaSU Version Code / Name:** ${{ steps.bakasu_release.outputs.BAKASU_VERSIONS }}
             - **Supported Devices:** `alioth, apollo, cas, cmi, dagu, elish, enuma, lmi, munch, pipa, psyche, thyme, umi`
             
             ---

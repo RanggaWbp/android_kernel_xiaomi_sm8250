@@ -90,13 +90,16 @@ if [ "$ENABLE_KSU" -eq 1 ]; then
 
     # Capture BakaSU version for display in CI logs/artifacts
     if [ -d "KernelSU/.git" ]; then
-        BAKASU_VERSION=$(git -C KernelSU describe --tags --abbrev=12 2>/dev/null || git -C KernelSU rev-parse --short HEAD 2>/dev/null || echo "unknown")
-        BAKASU_COMMIT=$(git -C KernelSU rev-parse --short HEAD 2>/dev/null || echo "unknown")
+        KSU_LOCAL_VERSION=$(git -C KernelSU rev-list --count HEAD 2>/dev/null || echo "0")
+        BAKASU_VERSION_CODE=$((30000 + KSU_LOCAL_VERSION + 700))
+        BAKASU_TAG_NAME=$(git -C KernelSU describe --abbrev=0 --tags 2>/dev/null || echo "v4.1.0")
+        BAKASU_COMMIT_SHA=$(git -C KernelSU rev-parse --short=8 HEAD 2>/dev/null || echo "unknown")
+        BAKASU_VERSION="${BAKASU_TAG_NAME}-${BAKASU_COMMIT_SHA}"
         echo "$BAKASU_VERSION" > .bakasu_version
-        echo "$BAKASU_COMMIT" > .bakasu_commit
+        echo "$BAKASU_VERSION_CODE" > .bakasu_version_code
         echo "==========================================="
-        echo " [i] BakaSU version: $BAKASU_VERSION"
-        echo " [i] BakaSU commit:  $BAKASU_COMMIT"
+        echo " [i] BakaSU version code: $BAKASU_VERSION_CODE"
+        echo " [i] BakaSU version name: $BAKASU_VERSION"
         echo "==========================================="
     else
         echo "[!] KernelSU git dir not found, cannot capture BakaSU version"

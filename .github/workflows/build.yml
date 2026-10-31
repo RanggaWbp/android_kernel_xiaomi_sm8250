@@ -104,16 +104,19 @@ jobs:
       run: |
         if [ -f .bakasu_version ]; then
           BAKASU_VERSION=$(cat .bakasu_version)
+          BAKASU_VERSION_CODE=$(cat .bakasu_version_code 2>/dev/null || echo "unknown")
           echo "BAKASU_VERSION=$BAKASU_VERSION" >> $GITHUB_OUTPUT
-          echo "BakaSU version: $BAKASU_VERSION"
+          echo "BAKASU_VERSION_CODE=$BAKASU_VERSION_CODE" >> $GITHUB_OUTPUT
+          echo "BakaSU version: $BAKASU_VERSION (code $BAKASU_VERSION_CODE)"
         else
           echo "BAKASU_VERSION=not enabled" >> $GITHUB_OUTPUT
+          echo "BAKASU_VERSION_CODE=not enabled" >> $GITHUB_OUTPUT
           echo "BakaSU not enabled (no version file)"
         fi
 
     - name: Upload Flashable ZIP
       uses: actions/upload-artifact@v7
       with:
-        name: TanpaNama-${{ github.event.inputs.device }}-${{ github.event.inputs.target_os }}-${{ steps.bakasu.outputs.BAKASU_VERSION }}-${{ github.run_id }}
+        name: TanpaNama-${{ github.event.inputs.device }}-${{ github.event.inputs.target_os }}-KSU-v${{ steps.bakasu.outputs.BAKASU_VERSION_CODE }}-${{ github.run_id }}
         path: TanpaNama_*.zip
         compression-level: 0 # already zip-compressed, no need to re-compress
