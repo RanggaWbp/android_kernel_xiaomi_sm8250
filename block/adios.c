@@ -1347,6 +1347,11 @@ static void adios_completed_request(struct request *rq) {
 	union adios_in_flight_rqs ifr = { .scalar = 0 };
 	u64 now = ktime_get_ns();
 
+	/* Flush requests skip prepare_request (see blk_mq_get_request); their
+	 * rq->elv.priv[0] is NULL and they carry no data worth accounting. */
+	if (!rd)
+		return;
+
 	if (rd->managed) {
 		union adios_in_flight_rqs ifr_to_sub = {
 			.count          = 1,
