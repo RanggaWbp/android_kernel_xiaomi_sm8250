@@ -75,7 +75,7 @@ jobs:
             python-is-python3
 
           mkdir -p ~/.cache/ccache_mikernel
-          ccache -M 10G
+          ccache -M 2G
 
       - name: Restore ccache
         uses: actions/cache/restore@v4
@@ -93,6 +93,7 @@ jobs:
           cd $HOME/zyc-clang
           wget -q https://github.com/ZyCromerZ/Clang/releases/download/16.0.6-20260807-release/Clang-16.0.6-20260807.tar.gz
           tar -zxvf Clang-16.0.6-20260807.tar.gz
+          rm -f Clang-16.0.6-20260807.tar.gz
 
       - name: Run Build Script
         run: |
