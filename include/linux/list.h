@@ -262,6 +262,29 @@ static inline void list_rotate_left(struct list_head *head)
 }
 
 /**
+ * list_rotate_to_front - rotate the list so that @list becomes the new head
+ * @list: the entry to become the new head
+ * @head: the head of the list
+ *
+ * The entries between @list (exclusive) and @head are moved to the head of
+ * the list, keeping their relative order.  If @list is already the head or
+ * the list is empty, nothing is done.
+ */
+static inline void list_rotate_to_front(struct list_head *list,
+					struct list_head *head)
+{
+	/*
+	 * Defer the null check to the caller to keep the fast path short.
+	 * list_is_first() is true when @list == head->next, which is exactly
+	 * the "already at head" case that needs no work.
+	 */
+	if (list_empty(head) || list_is_first(list, head))
+		return;
+
+	list_move_tail(head, list);
+}
+
+/**
  * list_is_singular - tests whether a list has just one entry.
  * @head: the list to test.
  */
