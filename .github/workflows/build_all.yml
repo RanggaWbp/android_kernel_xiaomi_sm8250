@@ -92,11 +92,25 @@ jobs:
           echo "Executing command: ./build_kernel.sh $ARGS"
           ./build_kernel.sh $ARGS
 
+      - name: Capture BakaSU Version
+        id: bakasu
+        run: |
+          if [ -f .bakasu_version ]; then
+            BAKASU_VERSION=$(cat .bakasu_version)
+            echo "BAKASU_VERSION=$BAKASU_VERSION" >> $GITHUB_OUTPUT
+            echo "$BAKASU_VERSION" > "bakasu_version_${{ matrix.device }}_${{ matrix.ksu && 'ksu' || 'noksu' }}.txt"
+            echo "BakaSU version: $BAKASU_VERSION"
+          else
+            echo "BAKASU_VERSION=not enabled" >> $GITHUB_OUTPUT
+          fi
+
       - name: Upload Kernel Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: TanpaNama-${{ matrix.device }}-${{ matrix.ksu && 'KSU' || 'NoKSU' }}-${{ github.run_id }}
-          path: TanpaNama_*.zip
+          path: |
+            TanpaNama_*.zip
+            bakasu_version_*.txt
           compression-level: 0 # kernel flash zip is already zip format, no need for double compression
 
   release:
@@ -124,6 +138,22 @@ jobs:
           pattern: TanpaNama-*-${{ github.run_id }}
           merge-multiple: true
 
+      - name: Collect BakaSU Versions
+        id: bakasu_release
+        run: |
+          # Collect unique BakaSU versions across device/ksu artifacts
+          if ls all_kernels/bakasu_version_*.txt >/dev/null 2>&1; then
+            # each file is the version string; collect unique non-"not enabled"
+            BAKASU_VERSIONS=$(cat all_kernels/bakasu_version_*.txt | sort -u | grep -v '^not enabled$' | paste -sd ', ' -)
+            if [ -z "$BAKASU_VERSIONS" ]; then
+              BAKASU_VERSIONS="not enabled in any build"
+            fi
+            echo "BAKASU_VERSIONS=$BAKASU_VERSIONS" >> $GITHUB_OUTPUT
+            echo "$BAKASU_VERSIONS" > all_kernels/BAKASU_VERSIONS.txt
+          else
+            echo "BAKASU_VERSIONS=not enabled" >> $GITHUB_OUTPUT
+          fi
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -134,6 +164,7 @@ jobs:
             
             - **Build Date:** ${{ steps.vars.outputs.BUILD_DATE }}
             - **Commit SHA:** `${{ steps.vars.outputs.SHA_SHORT }}`
+            - **BakaSU Version:** ${{ steps.bakasu_release.outputs.BAKASU_VERSIONS }}
             - **Supported Devices:** `alioth, apollo, cas, cmi, dagu, elish, enuma, lmi, munch, pipa, psyche, thyme, umi`
             
             ---

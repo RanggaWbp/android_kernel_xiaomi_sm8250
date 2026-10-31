@@ -87,6 +87,20 @@ if [ "$ENABLE_KSU" -eq 1 ]; then
     echo "[*] Downloading and running NoMount remote setup script..."
     curl -LSs "https://raw.githubusercontent.com/maxsteeel/nomount/refs/heads/dev/kernel/setup.sh" | bash -s dev
     echo "[+] NoMount setup finished."
+
+    # Capture BakaSU version for display in CI logs/artifacts
+    if [ -d "KernelSU/.git" ]; then
+        BAKASU_VERSION=$(git -C KernelSU describe --tags --abbrev=12 2>/dev/null || git -C KernelSU rev-parse --short HEAD 2>/dev/null || echo "unknown")
+        BAKASU_COMMIT=$(git -C KernelSU rev-parse --short HEAD 2>/dev/null || echo "unknown")
+        echo "$BAKASU_VERSION" > .bakasu_version
+        echo "$BAKASU_COMMIT" > .bakasu_commit
+        echo "==========================================="
+        echo " [i] BakaSU version: $BAKASU_VERSION"
+        echo " [i] BakaSU commit:  $BAKASU_COMMIT"
+        echo "==========================================="
+    else
+        echo "[!] KernelSU git dir not found, cannot capture BakaSU version"
+    fi
 fi
 
 # ==========================================
