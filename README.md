@@ -23,12 +23,12 @@ This repository is based on [LineageOS/android_kernel_qcom_sm8250](https://githu
 
 ## Features
 
-This kernel supports [BakaSU](https://github.com/Baka-SU/BakaSU) & [SuSFS](https://gitlab.com/simonpunk/susfs4ksu) & [NoMount](https://github.com/maxsteeel/nomount) & [BORE](https://github.com/firelzrd/bore-scheduler) (Burst-Oriented Response Enhancer) scheduler.  
+This kernel supports [BakaSU](https://github.com/Baka-SU/BakaSU) & [SuSFS](https://gitlab.com/simonpunk/susfs4ksu) & [NoMount](https://github.com/maxsteeel/nomount) & [BORE](https://github.com/firelzrd/bore-scheduler) (Burst-Oriented Response Enhancer) scheduler & [ADIOS](https://github.com/firelzrd/adios) (Adaptive Deadline I/O Scheduler).  
 Please install the BakaSU Manager by yourself.  
 The NoKernelSU version supports Magisk and APatch (and their forks).  
 Droidspaces (LXC/Docker container support) can be enabled as an optional build flag.  
 BORE is always enabled (`CONFIG_SCHED_BORE=y`) to improve UI responsiveness under heavy background load.
-NTSYNC (emulation of Windows NT synchronization primitives, e.g. for Wine/Proton) is built-in (`CONFIG_NTSYNC=y`), and BBRv3 is the default TCP congestion control (`CONFIG_DEFAULT_TCP_CONG="bbr3"`). The [POC](https://github.com/firelzrd/poc-selector) (Piece-Of-Cake) fast idle-CPU selector is enabled (`CONFIG_SCHED_POC_SELECTOR=y`), the [reflex](https://github.com/firelzrd/reflex) cpufreq governor is built-in (`CONFIG_CPU_FREQ_GOV_REFLEX=y`), and the [cambyses](https://github.com/firelzrd/cambyses) CFS load-balancer modification is applied.
+NTSYNC (emulation of Windows NT synchronization primitives, e.g. for Wine/Proton) is built-in (`CONFIG_NTSYNC=y`), and BBRv3 is the default TCP congestion control (`CONFIG_DEFAULT_TCP_CONG="bbr3"`). The [POC](https://github.com/firelzrd/poc-selector) (Piece-Of-Cake) fast idle-CPU selector is enabled (`CONFIG_SCHED_POC_SELECTOR=y`), the [reflex](https://github.com/firelzrd/reflex) cpufreq governor is built-in (`CONFIG_CPU_FREQ_GOV_REFLEX=y`), the [cambyses](https://github.com/firelzrd/cambyses) CFS load-balancer modification is applied, and [ADIOS](https://github.com/firelzrd/adios) is the default MQ I/O scheduler (`CONFIG_MQ_IOSCHED_DEFAULT_ADIOS=y`).
 
 The prebuilt kernel in the **Release** section is compiled from the `android17-aptusitu` branch, and should work on stock MIUI/HyperOS as well as third-party AOSP-based ROMs for Android 11–17.  
 Feedback is welcome (via Issues or Pull Requests)! Coolapk users can join the discussion in [this post](https://www.coolapk.com/feed/69700122), you can also join my QQ group, or send me private feedback.
@@ -49,6 +49,7 @@ Below are some of the key features:
 12. [POC](https://github.com/firelzrd/poc-selector) (Piece-Of-Cake) fast idle-CPU selector, all static keys enabled by default
 13. [reflex](https://github.com/firelzrd/reflex) cpufreq governor (v0.4.0), built-in (`CONFIG_CPU_FREQ_GOV_REFLEX=y`)
 14. [cambyses](https://github.com/firelzrd/cambyses) CFS load-balancer modification (v0.6.0), built-in
+15. [ADIOS](https://github.com/firelzrd/adios) (Adaptive Deadline I/O Scheduler, v3.3.0), set as the default MQ I/O scheduler (`CONFIG_MQ_IOSCHED_DEFAULT_ADIOS=y`)
 
 ---
 
