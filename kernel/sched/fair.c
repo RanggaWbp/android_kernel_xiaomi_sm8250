@@ -9298,7 +9298,7 @@ next:
 		tasks = &env->src_rq->cfs_tasks;
 		env->flags &= ~(LBF_IGNORE_BIG_TASKS |
 				LBF_IGNORE_PREFERRED_CLUSTER_TASKS);
-	<env->loop = orig_loop;
+		env->loop = orig_loop;
 		concession.p = NULL;
 		concession.cost = 0;
 		goto redo;
