@@ -327,7 +327,7 @@ config SGI_GRU_DEBUG
 
 config NTSYNC
 	tristate "NT synchronization primitive emulation"
-	default m
+	default y
 	help
 	  This module provides kernel support for emulation of Windows NT
 	  synchronization primitives. It is not a hardware driver.
