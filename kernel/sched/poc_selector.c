@@ -1830,6 +1830,7 @@ static struct ctl_table sched_poc_sysctls[] = {
 		.mode		= 0644,
 		.proc_handler	= sched_poc_waker_yield_handler,
 	},
+	{ }
 };
 
 static int __init sched_poc_sysctl_init(void)
