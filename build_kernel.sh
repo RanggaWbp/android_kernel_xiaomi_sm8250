@@ -81,6 +81,13 @@ if [ "$ENABLE_KSU" -eq 1 ]; then
     curl -LSs "https://raw.githubusercontent.com/Baka-SU/BakaSU/main/kernel/setup.sh" | bash
     echo "[+] KernelSU (BakaSU) setup finished."
 
+    # Pin BakaSU to the single SHA resolved once at workflow start, so all
+    # matrix jobs compile the same version (upstream may move mid-run).
+    if [ -n "${BAKASU_PIN_SHA:-}" ] && [ -d "KernelSU/.git" ]; then
+        echo " [i] Pinning BakaSU to $BAKASU_PIN_SHA"
+        git -C KernelSU reset --hard "$BAKASU_PIN_SHA"
+    fi
+
     echo "==========================================="
     echo " [*] Initializing NoMount Setup"
     echo "==========================================="

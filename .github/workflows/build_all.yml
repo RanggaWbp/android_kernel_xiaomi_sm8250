@@ -18,9 +18,27 @@ permissions:
   contents: write
 
 jobs:
+  prepare:
+    name: Resolve BakaSU SHA
+    runs-on: ubuntu-24.04
+    outputs:
+      bakasu_sha: ${{ steps.sha.outputs.sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Resolve BakaSU main SHA
+        id: sha
+        run: |
+          SHA=$(git ls-remote https://github.com/Baka-SU/BakaSU.git refs/heads/main | awk '{print $1}')
+          echo "sha=$SHA" >> $GITHUB_OUTPUT
+          echo "BakaSU pinned SHA: $SHA"
+
   build-matrix:
     name: Build ${{ matrix.device }} | ${{ matrix.ksu && 'KSU' || 'NoKSU' }} (AOSP + MIUI)
+    needs: prepare
     runs-on: ubuntu-24.04
+    env:
+      BAKASU_PIN_SHA: ${{ needs.prepare.outputs.bakasu_sha }}
     strategy:
       fail-fast: false
       matrix:
