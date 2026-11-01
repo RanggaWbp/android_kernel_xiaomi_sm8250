@@ -40,15 +40,7 @@
 #ifdef CONFIG_KSU_SUSFS
 #include <linux/susfs_def.h>
 #endif // #ifdef CONFIG_KSU_SUSFS
-#ifdef CONFIG_KSU_SUSFS
-#include <linux/susfs_def.h>
-#endif // #ifdef CONFIG_KSU_SUSFS
 #include "internal.h"
-
-#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-extern bool susfs_is_current_ksu_domain(void);
-extern struct static_key_true susfs_is_sdcard_android_data_not_decrypted;
-#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 extern bool susfs_is_current_ksu_domain(void);
@@ -1015,22 +1007,6 @@ int reconfigure_super(struct fs_context *fc)
 	/* Needs to be ordered wrt mnt_is_readonly() */
 	smp_wmb();
 	sb->s_readonly_remount = 0;
-
-#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-	if (static_branch_unlikely(&susfs_is_sdcard_android_data_not_decrypted)) {
-		if (susfs_is_current_ksu_domain()) {
-			dev = ida_alloc_range(&unnamed_dev_ida, DEFAULT_KSU_MNT_MINOR_DEV, (1 << MINORBITS) - 1,
-				GFP_ATOMIC);
-			if (dev == -ENOSPC)
-				dev = -EMFILE;
-			if (dev < 0)
-				return dev;
-
-			*p = MKDEV(0, dev);
-			return 0;
-		}
-	}
-#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 
 	/*
 	 * Some filesystems modify their metadata via some other path than the
