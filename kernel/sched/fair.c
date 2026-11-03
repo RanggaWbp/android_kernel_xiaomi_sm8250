@@ -9245,9 +9245,15 @@ redo:
 		/*
 		 * From here on @p counts as examined, whatever the outcome:
 		 * a later pass resumes past it rather than looking again.
+		 *
+		 * Always set @resume to @nextp: when @nextp is the list head
+		 * the subsequent rotation guard (resume != tasks) makes it a
+		 * no-op.  Guarding it here instead would leave @resume
+		 * pointing at a node already detached this pass, and the
+		 * block rotation would then anchor on freed/foreign list
+		 * state and corrupt the list.
 		 */
-		if (&nextp->se.group_node != tasks)
-			resume = &nextp->se.group_node;
+		resume = &nextp->se.group_node;
 
 		if (!can_migrate_task(p, env))
 			goto next;
