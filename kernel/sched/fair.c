@@ -9176,7 +9176,8 @@ static int detach_tasks(struct lb_env *env)
 {
 	struct list_head *tasks = &env->src_rq->cfs_tasks;
 	struct lb_concession concession = { NULL, 0 };
-	struct task_struct *p;
+	struct list_head *resume = NULL;
+	struct task_struct *p, *nextp;
 	unsigned long load = 0;
 	int detached = 0;
 	int orig_loop = env->loop;
@@ -9197,31 +9198,56 @@ static int detach_tasks(struct lb_env *env)
 	}
 
 redo:
-	while (!list_empty(tasks)) {
+	/*
+	 * Walk cfs_tasks from the tail towards the head.
+	 *
+	 * @nextp is latched before the body runs because a successful
+	 * detach_task() takes @p off this list.  Only @p is ever removed
+	 * here and the rq lock is held throughout, so @nextp stays valid.
+	 *
+	 * @resume tracks the first task this pass has not examined; it is
+	 * the point a later pass should restart from.
+	 */
+	for (p = list_last_entry(tasks, struct task_struct, se.group_node);
+	     &p->se.group_node != tasks; p = nextp) {
+		nextp = list_prev_entry(p, se.group_node);
+
 		/*
 		 * We don't want to steal all, otherwise we may be treated likewise,
 		 * which could at worst lead to a livelock crash.
 		 */
-		if (env->idle != CPU_NOT_IDLE && env->src_rq->nr_running <= 1)
+		if (env->idle != CPU_NOT_IDLE && env->src_rq->nr_running <= 1) {
+			resume = &p->se.group_node;
 			break;
-
-		p = list_last_entry(tasks, struct task_struct, se.group_node);
+		}
 
 		env->loop++;
 		/* We've more or less seen every task there is, call it quits */
-		if (env->loop > env->loop_max)
+		if (env->loop > env->loop_max) {
+			resume = &p->se.group_node;
 			break;
+		}
 
 		/* Abort the loop, if we spent more than 5 msec */
-		if (rq_clock(env->src_rq) - start_t > 5000000)
+		if (rq_clock(env->src_rq) - start_t > 5000000) {
+			resume = &p->se.group_node;
 			break;
+		}
 
 		/* take a breather every nr_migrate tasks */
 		if (env->loop > env->loop_break) {
 			env->loop_break += sched_nr_migrate_break;
 			env->flags |= LBF_NEED_BREAK;
+			resume = &p->se.group_node;
 			break;
 		}
+
+		/*
+		 * From here on @p counts as examined, whatever the outcome:
+		 * a later pass resumes past it rather than looking again.
+		 */
+		if (&nextp->se.group_node != tasks)
+			resume = &nextp->se.group_node;
 
 		if (!can_migrate_task(p, env))
 			goto next;
@@ -9290,8 +9316,13 @@ next:
 				env->src_grp_type, p->pid, load, task_util(p),
 				cpumask_bits(&p->cpus_allowed)[0]);
 #endif
-		list_move(&p->se.group_node, tasks);
+		if (!sched_feat(LB_ROTATE_BLOCK))
+			list_move(&p->se.group_node, tasks);
 	}
+
+	if (sched_feat(LB_ROTATE_BLOCK) && resume &&
+	    resume->next != tasks)
+		list_rotate_to_front(resume->next, tasks);
 
 	if (env->flags & (LBF_IGNORE_BIG_TASKS |
 			LBF_IGNORE_PREFERRED_CLUSTER_TASKS) && !detached) {
@@ -9301,6 +9332,7 @@ next:
 		env->loop = orig_loop;
 		concession.p = NULL;
 		concession.cost = 0;
+		resume = NULL;
 		goto redo;
 	}
 
@@ -9315,12 +9347,18 @@ next:
 	 * relaxation.  LBF_MOVED makes it fire at most once per balance operation.
 	 */
 	if (concession.p && !(env->flags & LBF_MOVED)) {
-		detach_task(concession.p, env);
-		list_add(&concession.p->se.group_node, &env->tasks);
-
-		env->imbalance -= concession.cost;
-		env->flags |= LBF_MOVED;
-		detached++;
+		/* Re-check the conceded task is still on this runqueue and queued
+		 * in the CFS list before detaching; a racing balance pass or the
+		 * per-reject list_move() may have taken it elsewhere.
+		 */
+		if (task_on_rq_queued(concession.p) &&
+		    task_rq(concession.p) == env->src_rq) {
+			detach_task(concession.p, env);
+			list_add(&concession.p->se.group_node, &env->tasks);
+			env->imbalance -= concession.cost;
+			env->flags |= LBF_MOVED;
+			detached++;
+		}
 	}
 
 	/*
