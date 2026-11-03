@@ -1391,9 +1391,7 @@ static int fg_get_soc_decimal_rate(struct bq_fg_chip *bq)
 
 	for (i = 0; i < bq->dec_rate_len; i += 2) {
 		if (soc < bq->dec_rate_seq[i]) {
-			if (i > 0)
-				return bq->dec_rate_seq[i - 1];
-			return bq->dec_rate_seq[0];
+			return bq->dec_rate_seq[i - 1];
 		}
 	}
 
@@ -2528,8 +2526,6 @@ static int fg_get_raw_soc(struct bq_fg_chip *bq)
 	fcc = fg_read_fcc(bq);
 
 	//raw_soc = DIV_ROUND_CLOSEST(rm * 10000 / fcc, 100);
-	if (fcc <= 0)
-		return 0;
 	raw_soc = rm * 10000 / fcc;
 
 	return raw_soc;
