@@ -713,6 +713,8 @@ static inline u32 eval_adios_state(struct adios_data *ad, u32 shift)
 { return eval_this_adios_state(get_adios_state(ad), shift); }
 
 // Add a request to the deadline-sorted red-black tree
+static void insert_to_prio_queue(struct adios_data *ad,
+		struct request *rq, bool pq_idx);
 static void add_to_dl_tree(
 		struct adios_data *ad, bool dl_idx, struct request *rq) {
 	struct rb_root_cached *root = &ad->dl_tree[dl_idx];
@@ -758,8 +760,18 @@ static void add_to_dl_tree(
 	dlg = rb_entry_safe(parent, struct dl_group, node);
 	if (!dlg || dlg->deadline != deadline) {
 		dlg = kmem_cache_zalloc(ad->dl_group_pool, GFP_ATOMIC);
-		if (!dlg)
+		if (!dlg) {
+			/*
+			 * OOM on the group slab. The caller has already
+			 * list_del_init()'d this request off the incoming
+			 * list, so dropping it here orphans the bio forever
+			 * (IO hang -> boot stall on OOM-pressure boot).
+			 * Rescue it into the Tier-0 prio queue, which is
+			 * always available and dispatched immediately.
+			 */
+			insert_to_prio_queue(ad, rq, 0);
 			return;
+		}
 		dlg->deadline = deadline;
 		INIT_LIST_HEAD(&dlg->rqs);
 		rb_link_node(&dlg->node, parent, link);

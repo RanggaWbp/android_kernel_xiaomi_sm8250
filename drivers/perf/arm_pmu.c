@@ -704,14 +704,28 @@ static void cpu_pm_pmu_setup(struct arm_pmu *armpmu, unsigned long cmd)
 }
 
 static int cpu_pm_pmu_notify(struct notifier_block *b, unsigned long cmd,
-			     void *v)
+		void *v)
 {
 	struct arm_pmu *armpmu = container_of(b, struct arm_pmu, cpu_pm_nb);
-	struct pmu_hw_events *hw_events = this_cpu_ptr(armpmu->hw_events);
-	int enabled = bitmap_weight(hw_events->used_mask, armpmu->num_events);
+	struct pmu_hw_events *hw_events;
+	int enabled;
 
 	if (!cpumask_test_cpu(smp_processor_id(), &armpmu->supported_cpus))
 		return NOTIFY_DONE;
+
+	/*
+	 * Guard against PMU hotplug/cpuidle races. The per-CPU hw_events
+	 * is only valid once arm_pmu_device_probe() has finished wiring it
+	 * up; before that (or during hotplug teardown) the notifier can be
+	 * invoked from lpm_cpuidle_enter() while our per-CPU state is not
+	 * yet ready. Mirror the guard armv8pmu_idle_update() uses: bail out
+	 * before touching hw_events.
+	 */
+	if (!armpmu->hw_events)
+		return NOTIFY_DONE;
+
+	hw_events = this_cpu_ptr(armpmu->hw_events);
+	enabled = bitmap_weight(hw_events->used_mask, armpmu->num_events);
 
 	/*
 	 * Always reset the PMU registers on power-up even if
