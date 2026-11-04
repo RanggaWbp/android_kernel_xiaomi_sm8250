@@ -3853,8 +3853,10 @@ static bool perf_rotate_context(struct perf_cpu_context *cpuctx)
 
 void perf_event_task_tick(void)
 {
-	struct list_head *head = this_cpu_ptr(&active_ctx_list);
-	struct perf_event_context *ctx, *tmp;
+	struct perf_cpu_context *cpuctx;
+	struct perf_event_context *ctx;
+	struct pmu *pmu;
+	int ctxn;
 	int throttled;
 
 	lockdep_assert_irqs_disabled();
@@ -3863,8 +3865,27 @@ void perf_event_task_tick(void)
 	throttled = __this_cpu_xchg(perf_throttled_count, 0);
 	tick_dep_clear_cpu(smp_processor_id(), TICK_DEP_BIT_PERF_EVENTS);
 
-	list_for_each_entry_safe(ctx, tmp, head, active_ctx_list)
-		perf_adjust_freq_unthr_context(ctx, throttled);
+	/*
+	 * Iterate the per-PMU CPU contexts and the current task's context
+	 * instead of the per-CPU active_ctx_list. A context can be freed by
+	 * the RCU callback (free_ctx) while it is still linked on
+	 * active_ctx_list, causing a use-after-free in perf_adjust_freq_
+	 * unthr_context(). Hold an RCU read lock and guard the task context
+	 * via rcu_dereference() to keep it alive (matches upstream behavior).
+	 */
+	rcu_read_lock();
+	list_for_each_entry_rcu(pmu, &pmus, entry) {
+		if (!pmu->pmu_cpu_context)
+			continue;
+		cpuctx = this_cpu_ptr(pmu->pmu_cpu_context);
+		perf_adjust_freq_unthr_context(&cpuctx->ctx, throttled);
+	}
+	for_each_task_context_nr(ctxn) {
+		ctx = rcu_dereference(current->perf_event_ctxp[ctxn]);
+		if (ctx)
+			perf_adjust_freq_unthr_context(ctx, throttled);
+	}
+	rcu_read_unlock();
 }
 
 static int event_enable_on_exec(struct perf_event *event,
