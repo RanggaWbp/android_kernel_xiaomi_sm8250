@@ -73,6 +73,7 @@ $(obj)/Image.gz-dtb: $(obj)/Image.gz $(DTB_OBJS) FORCE
 $(obj)/dtbo.img: $(DTBO_OBJS) FORCE
 	$(call if_changed,mkdtimg)
 
+
 $(obj)/dtb: $(DTB_OBJS) FORCE
 	$(call if_changed,cat)
 
