@@ -146,7 +146,6 @@ endif
 KBUILD_DTBO_IMG := dtbo.img
 
 KBUILD_DTB_IMG := dtb
-endif
 
 PHONY += vdso_install
 vdso_install:
