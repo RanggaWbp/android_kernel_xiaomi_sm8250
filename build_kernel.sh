@@ -142,6 +142,10 @@ git clone https://github.com/osm0sis/AnyKernel3 -b master --single-branch --dept
 echo "[+] AnyKernel3 cloned successfully."
 echo "[*] Adjusting AnyKernel3..."
 sed -i "s/^device\.name1=.*/device.name1=${DEVICE_NAME}/" anykernel/anykernel.sh
+# Fix boot partition path: osm0sis default is a dead omap placeholder, which makes TWRP abort with "unable to determine /dev/block/platform/omap/omap_hsmmc.0/by-name/boot". Xiaomi/SM8250 uses bootdevice by-name.
+sed -i 's|^BLOCK=/dev/block/platform/omap/omap_hsmmc.0/by-name/boot;|BLOCK=/dev/block/bootdevice/by-name/boot;|' anykernel/anykernel.sh
+# A/B slot device: set IS_SLOT_DEVICE=auto so boot_$slot is picked on slot devices
+sed -i 's/^IS_SLOT_DEVICE=0;/IS_SLOT_DEVICE=auto;/' anykernel/anykernel.sh
 # Rebrand flash-time kernel.string (shown by ui_print) - drop the old APTKernel/ApartTUSITU branding
 sed -i 's/^kernel.string=.*/kernel.string=TanpaNama by RanggaWbp/' anykernel/anykernel.sh
 echo "[*] AnyKernel3 adjusted successfully."
