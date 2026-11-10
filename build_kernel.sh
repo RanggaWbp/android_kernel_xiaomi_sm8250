@@ -148,6 +148,13 @@ sed -i 's/^IS_SLOT_DEVICE=0;/IS_SLOT_DEVICE=auto;/' anykernel/anykernel.sh
 # Rebrand flash-time kernel.string (shown by ui_print) - drop the old APTKernel/ApartTUSITU branding
 sed -i 's/^kernel.string=.*/kernel.string=TanpaNama by RanggaWbp/' anykernel/anykernel.sh
 echo "[*] AnyKernel3 adjusted successfully."
+
+# Replace the osm0sis default boot-install flow (dump_boot/write_boot) with an
+# AstideLabs-style flow that moves kernels/$os/Image into $AKHOME/Image and
+# uses split_boot + flash_boot + flash_generic dtbo. The osm0sis default never
+# moves Image into $AKHOME/Image, so it repacks the OLD dumped kernel and the
+# new kernel is silently ignored (flash reports success but version unchanged).
+bash "$(dirname "$0")/patch_ak3.sh" "anykernel/anykernel.sh"
 echo "==========================================="
 
 # ==========================================
