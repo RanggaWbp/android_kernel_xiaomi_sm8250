@@ -25,11 +25,9 @@
 #include <linux/bitmap.h>
 #include <linux/limits.h>
 #include <linux/rcupdate.h>
-#include <linux/hashtable.h>
-#include <linux/hash.h>
-#include <linux/bitops.h>
 #include <linux/string.h>
 #include <linux/vmalloc.h>
+#include <linux/hash.h>
 #include <linux/susfs.h>
 #include "fuse/fuse_i.h"
 #include "mount.h"
@@ -62,6 +60,9 @@ static inline void *susfs_kvmalloc(size_t size, gfp_t flags)
 DEFINE_STATIC_KEY_TRUE(susfs_is_log_enabled);
 #define SUSFS_LOGI(fmt, ...) if (static_branch_likely(&susfs_is_log_enabled)) pr_info("susfs:[%u][%d][%s] " fmt, current_uid().val, current->pid, __func__, ##__VA_ARGS__)
 #define SUSFS_LOGE(fmt, ...) if (static_branch_likely(&susfs_is_log_enabled)) pr_err("susfs:[%u][%d][%s]" fmt, current_uid().val, current->pid, __func__, ##__VA_ARGS__)
+#define SUSFS_LOGI_RL(fmt, ...) if (static_branch_likely(&susfs_is_log_enabled)) pr_info_ratelimited("susfs:[%u][%d][%s] " fmt, current_uid().val, current->pid, __func__, ##__VA_ARGS__)
+#define SUSFS_LOGE_RL(fmt, ...) if (static_branch_likely(&susfs_is_log_enabled)) pr_err_ratelimited("susfs:[%u][%d][%s]" fmt, current_uid().val, current->pid, __func__, ##__VA_ARGS__)
+
 #else
 #define SUSFS_LOGI(fmt, ...) 
 #define SUSFS_LOGE(fmt, ...) 
@@ -94,7 +95,7 @@ int susfs_add_sus_type(const char *secctx, u32 type_value) {
 	}
 
 	hash_add_rcu(SUS_TYPE_HLIST, &new_entry->node, type_value);
-	SUSFS_LOGI("secctx '%s', type '%u', has been added to SUS_TYPE_HLIST\n",
+	SUSFS_LOGI_RL("secctx '%s', type '%u', has been added to SUS_TYPE_HLIST\n",
 					secctx, type_value);
 unlock:
 	mutex_unlock(&susfs_mutex_lock_sus_type);
@@ -171,7 +172,7 @@ int susfs_add_sus_avd_allowed_by_type(u32 s_type, u32 t_type, u32 c_type, u32 or
 
 
 	hash_add_rcu(SUS_AVD_ALLOWED_HLIST, &entry->node, key);
-	SUSFS_LOGI("av_rule '%u %u %u %u' has been added to SUS_AVD_ALLOWED_HLIST\n",
+	SUSFS_LOGI_RL("av_rule '%u %u %u %u' has been added to SUS_AVD_ALLOWED_HLIST\n",
 				s_type, t_type, c_type, orig_avd_allowed);
 unlock:
 	mutex_unlock(&susfs_mutex_lock_sus_avd_allowed_hlist);
@@ -193,6 +194,7 @@ void susfs_spoof_avd_allowed_rcu(u32 s_type, u32 t_type, u32 c_type, u32 *avd_al
 		}
 	}
 }
+
 /*
  * Switches the selinux domain of the current process to the KernelSU one, so
  * that the data paths of the apps can be accessed despite of the selinux
@@ -201,6 +203,7 @@ void susfs_spoof_avd_allowed_rcu(u32 s_type, u32 t_type, u32 c_type, u32 *avd_al
  * susfs_restore_creds() afterwards.
  * Returns the original credentials on success, NULL on failure.
  */
+#ifdef CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER
 static struct cred *susfs_switch_to_ksu_domain(void) {
 	struct cred *orig_cred = NULL;
 	struct cred *cred = NULL;
@@ -241,7 +244,7 @@ static void susfs_restore_creds(struct cred *orig_cred) {
 
 	commit_creds(orig_cred);
 }
-
+#endif // #ifdef CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER
 
 /* sus_path */
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
@@ -1395,6 +1398,19 @@ out_copy_to_user:
 #endif // #ifdef CONFIG_KSU_SUSFS_SUS_MAP
 
 /* priority uid filter */
+#ifdef CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER
+/*****************************************/
+/* getpriority uid filter (bitmap)       */
+/*****************************************/
+/* The uids that are hidden from the apps that abuse the getpriority syscall
+ * to find out the existing uids. Only the uids within the app uid range
+ * (10000 - 19999) are supported.
+ */
+#define SUSFS_PRIORITY_UID_FILTER_MIN_UID 10000
+#define SUSFS_PRIORITY_UID_FILTER_MAX_UID 19999
+#define SUSFS_PRIORITY_UID_FILTER_UID_NUM (SUSFS_PRIORITY_UID_FILTER_MAX_UID - SUSFS_PRIORITY_UID_FILTER_MIN_UID + 1)
+#define SUSFS_PRIORITY_UID_FILTER_BITMAP_LEN BITS_TO_LONGS(SUSFS_PRIORITY_UID_FILTER_UID_NUM)
+
 struct susfs_priority_uid_filter_bitmap {
 	struct rcu_head			rcu;
 	unsigned long			bits[SUSFS_PRIORITY_UID_FILTER_BITMAP_LEN];
@@ -1439,46 +1455,103 @@ static bool susfs_is_valid_app_name(const char *app_name) {
 }
 
 /*
- * Resolves the uid of the given app package name with the owner uid of the
- * data path of the app ('/data/data/<app_name>').
+ * Resolves the uid of the given app package name from /data/system/packages.list.
  * Returns 0 on success, a negative errno on failure.
  */
 static int susfs_resolve_priority_app_uid(const char *app_name, uid_t *uid) {
-	char app_path[512];
-	struct path path;
-	struct kstat st;
-	int len;
-	int ret;
+	struct file *fp;
+	char *buf = NULL;
+	char *line, *tmp, *p;
+	char *pkg_name, *uid_str;
+	loff_t pos = 0;
+	size_t size;
+	unsigned long val;
+	int ret = -ENOENT;
 
-	len = scnprintf(app_path, sizeof(app_path), "/data/data/%s", app_name);
-	if (len < 0 || len >= sizeof(app_path)) {
-		SUSFS_LOGE("the app name '%s' is too long\n", app_name);
+	if (!app_name || !*app_name || !uid)
 		return -EINVAL;
-	}
 
-	ret = kern_path(app_path, LOOKUP_FOLLOW, &path);
-	if (ret) {
-		SUSFS_LOGE("failed to look up '%s': %d\n", app_path, ret);
+	if (!susfs_is_valid_app_name(app_name))
+		return -EINVAL;
+
+	fp = filp_open("/data/system/packages.list", O_RDONLY | O_NOATIME, 0);
+	if (IS_ERR(fp)) {
+		ret = PTR_ERR(fp);
+		SUSFS_LOGE("failed to open /data/system/packages.list: %d\n", ret);
 		return ret;
 	}
 
-#if defined(STATX_BASIC_STATS)
-	ret = vfs_getattr(&path, &st, STATX_BASIC_STATS, 0);
-#else
-	ret = vfs_getattr(&path, &st);
-#endif
-	path_put(&path);
-	if (ret) {
-		SUSFS_LOGE("failed to get the attributes of '%s': %d\n", app_path, ret);
-		return ret;
+	size = i_size_read(file_inode(fp));
+	if (size <= 0 || size > (4 * 1024 * 1024)) {
+		filp_close(fp, NULL);
+		return -EFBIG;
 	}
 
-	*uid = from_kuid(&init_user_ns, st.uid);
-	if (*uid < SUSFS_PRIORITY_UID_FILTER_MIN_UID ||
-		*uid > SUSFS_PRIORITY_UID_FILTER_MAX_UID)
-		return -EINVAL;
+	buf = vmalloc(size + 1);
+	if (!buf) {
+		filp_close(fp, NULL);
+		return -ENOMEM;
+	}
+	buf[size] = '\0';
 
-	return 0;
+	ret = kernel_read(fp, buf, size, &pos);
+	filp_close(fp, NULL);
+	if (ret != (int)size) {
+		vfree(buf);
+		return -EIO;
+	}
+
+	line = buf;
+	while (line && *line) {
+		p = strchr(line, '\n');
+		if (p) {
+			*p = '\0';
+			tmp = p + 1;
+		} else {
+			tmp = NULL;
+		}
+
+		/* skip empty lines */
+		if (*line == '\0' || *line == '\r') {
+			line = tmp;
+			continue;
+		}
+
+		/* packages.list format: <package> <uid> <gid> ... */
+		pkg_name = strsep(&line, " \t");
+		if (!pkg_name || *pkg_name == '\0') {
+			line = tmp;
+			continue;
+		}
+
+		uid_str = strsep(&line, " \t");
+		if (!uid_str || *uid_str == '\0') {
+			line = tmp;
+			continue;
+		}
+
+		if (!strcmp(pkg_name, app_name)) {
+			if (kstrtoul(uid_str, 10, &val)) {
+				vfree(buf);
+				return -EINVAL;
+			}
+
+			*uid = (uid_t)val % 100000;
+
+			vfree(buf);
+
+			if (*uid < SUSFS_PRIORITY_UID_FILTER_MIN_UID ||
+			    *uid > SUSFS_PRIORITY_UID_FILTER_MAX_UID)
+				return -EINVAL;
+
+			return 0;
+		}
+
+		line = tmp;
+	}
+
+	vfree(buf);
+	return -ENOENT;
 }
 
 /*
@@ -1606,7 +1679,7 @@ void susfs_set_priority_uid_filter(void __user **user_info) {
 
 	if (is_uid_filter_set_before)
 		SUSFS_LOGI("renewing the priority uid filter\n");
-	err = susfs_parse_priority_app_names(info->app_strings, new_bitmap->bits, false);
+	err = susfs_parse_priority_app_names(info->app_strings, new_bitmap->bits, true);
 
 	susfs_restore_creds(orig_cred);
 	orig_cred = NULL;
@@ -1768,6 +1841,7 @@ bool susfs_is_priority_uid_filtered(uid_t uid) {
 
 	return false;
 }
+#endif // #ifdef CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER
 
 /* susfs avc log spoofing */
 DEFINE_STATIC_KEY_FALSE(susfs_is_avc_log_spoofing_enabled);
@@ -1875,6 +1949,11 @@ void susfs_get_enabled_features(void __user **user_info) {
 	if (info->err) goto out_copy_to_user;
 	buf_ptr = info->enabled_features + copied_size;
 #endif
+#ifdef CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER
+	info->err = copy_config_to_buf("CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER\n", buf_ptr, &copied_size, SUSFS_ENABLED_FEATURES_SIZE);
+	if (info->err) goto out_copy_to_user;
+	buf_ptr = info->enabled_features + copied_size;
+#endif // #ifdef CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER
 
 	info->err = 0;
 out_copy_to_user:
@@ -2127,7 +2206,7 @@ static void susfs_run_extra_works(struct work_struct *work) {
 }
 
 /* susfs_init */
-void susfs_init(void) {
+void susfs_init(void) {\
 	SUSFS_LOGI("Initializing susfs_extra_works\n");
 	INIT_WORK(&susfs_extra_works, susfs_run_extra_works);
 	SUSFS_LOGI("susfs is initialized! version: " SUSFS_VERSION " \n");
@@ -2135,3 +2214,4 @@ void susfs_init(void) {
 
 /* No module exit is needed becuase it should never be a loadable kernel module */
 //void __init susfs_exit(void)
+
