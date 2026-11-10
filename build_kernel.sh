@@ -313,9 +313,8 @@ build_target() {
     if [ "$ENABLE_DROIDSPACES" -eq 1 ]; then
         echo "[*] Injecting Droidspaces specific configurations..."
         DROIDSPACES_CONFIG="${KERNEL_DIR}/.droidspaces.config"
-        if [ ! -f "$DROIDSPACES_CONFIG" ]; then
-            curl -LSs "https://raw.githubusercontent.com/JackA1ltman/NonGKI_Kernel_Build_2nd/mainline/Patches/Droidspaces/droidspaces.config" -o "$DROIDSPACES_CONFIG"
-        fi
+        # Always fetch the latest upstream config (auto-sync, no manual update)
+        curl -LSs "https://raw.githubusercontent.com/JackA1ltman/NonGKI_Kernel_Build_2nd/mainline/Patches/Droidspaces/droidspaces.config" -o "$DROIDSPACES_CONFIG"
         cat "$DROIDSPACES_CONFIG" >> "${OUT_DIR}/.config"
     fi
 
