@@ -82,6 +82,39 @@ if [ "$ENABLE_KSU" -eq 1 ]; then
     curl -LSs "https://raw.githubusercontent.com/Baka-SU/BakaSU/main/kernel/setup.sh" | bash
     echo "[+] KernelSU (BakaSU) setup finished."
 
+    # Expose SUSFS getpriority UID filter (present in kernel code but missing
+    # from BakaSU Kconfig -> default n -> feature off). Add the Kconfig entry
+    # so CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER can be enabled.
+    if [ -f "KernelSU/kernel/Kconfig" ]; then
+        if ! grep -q "KSU_SUSFS_PRIORITY_UID_FILTER" KernelSU/kernel/Kconfig; then
+            python3 - <<'PYEOF'
+import sys
+p = "KernelSU/kernel/Kconfig"
+s = open(p).read()
+block = '''
+config KSU_SUSFS_PRIORITY_UID_FILTER
+    bool "Enable getpriority/setpriority/ioprio UID filter"
+    depends on KSU_SUSFS
+    default y
+    help
+        - Hide UIDs (10000-19999) from getpriority/setpriority/ioprio_set
+          syscalls, preventing apps from enumerating existing UIDs.
+'''
+# place before the final endmenu (SUSFS menu close)
+idx = s.rfind("\nendmenu\n")
+if idx == -1:
+    sys.exit("endmenu not found")
+s = s[:idx] + "\n" + block + s[idx:]
+open(p, "w").write(s)
+PYEOF
+            echo "  [i] Added KSU_SUSFS_PRIORITY_UID_FILTER to BakaSU Kconfig"
+        else
+            echo "  [i] KSU_SUSFS_PRIORITY_UID_FILTER already in BakaSU Kconfig"
+        fi
+    else
+        echo "  [!] KernelSU/kernel/Kconfig not found; cannot add PRIORITY_UID_FILTER"
+    fi
+
     # Pin BakaSU to the single SHA resolved once at workflow start, so all
     # matrix jobs compile the same version (upstream may move mid-run).
     if [ -n "${BAKASU_PIN_SHA:-}" ] && [ -d "KernelSU/.git" ]; then
@@ -267,6 +300,7 @@ build_target() {
             -e KSU \
             -e THREAD_INFO_IN_TASK \
             -e KSU_SUSFS \
+            -e KSU_SUSFS_PRIORITY_UID_FILTER \
             -e NOMOUNT
     fi
 
