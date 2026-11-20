@@ -873,6 +873,10 @@ bool susfs_is_uid_allowed_for_sus_path(uid_t uid) {
 	rcu_read_unlock();
 	return false;
 }
+
+int susfs_get_data_path(struct path *path) {
+	return kern_path("/data", LOOKUP_FOLLOW, path);
+}
 #endif // #ifdef CONFIG_KSU_SUSFS_SUS_PATH
 
 /* sus_mount */
