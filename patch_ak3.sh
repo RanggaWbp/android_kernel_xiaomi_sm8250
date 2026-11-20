@@ -11,7 +11,7 @@ cat > "$f" <<'AKEOF'
 # global properties
 properties() { '
 kernel.string=TanpaNama by RanggaWbp
-do.devicecheck=0
+do.devicecheck=1
 do.modules=0
 do.systemless=1
 do.cleanup=1

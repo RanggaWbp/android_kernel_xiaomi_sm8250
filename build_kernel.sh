@@ -17,6 +17,7 @@ if [ -z "$1" ]; then
 fi
 
 DEVICE_NAME="$1"
+export DEVICE_NAME
 DEFCONFIG="${DEVICE_NAME}_defconfig"
 DEFCONFIG_PATH="arch/arm64/configs/${DEFCONFIG}"
 
