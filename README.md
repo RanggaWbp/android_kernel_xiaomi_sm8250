@@ -48,7 +48,7 @@ Below are some of the key features:
 11. BBRv3 TCP congestion control, set as the default (`CONFIG_DEFAULT_TCP_CONG="bbr3"`)
 12. [POC](https://github.com/firelzrd/poc-selector) (Piece-Of-Cake) fast idle-CPU selector, all static keys enabled by default
 13. [reflex](https://github.com/firelzrd/reflex) cpufreq governor (v0.4.0), built-in as an available option, not default (`CONFIG_CPU_FREQ_GOV_REFLEX=y`); default governor is stock schedutil (`CONFIG_CPU_FREQ_DEFAULT_GOV_SCHEDUTIL=y`)
-14. [cambyses](https://github.com/firelzrd/cambyses) CFS load-balancer modification (v0.6.0), built-in
+14. [cambyses](https://github.com/firelzrd/cambyses) CFS load-balancer modification (v0.7.2), built-in
 15. [ADIOS](https://github.com/firelzrd/adios) (Adaptive Deadline I/O Scheduler, v3.3.0), set as the default MQ I/O scheduler (`CONFIG_MQ_IOSCHED_DEFAULT_ADIOS=y`)
 16. [LZ4KDR](https://github.com/firelzrd/zram-ir) (speed-tuned LZ4KD derivative, v1.3) compression for zRAM, available via crypto API (`CONFIG_CRYPTO_LZ4KDR=y`) — not the default compressor
 

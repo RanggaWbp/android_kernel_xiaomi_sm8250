@@ -8782,6 +8782,7 @@ enum group_type {
 #define LBF_IGNORE_BIG_TASKS 0x100
 #define LBF_IGNORE_PREFERRED_CLUSTER_TASKS 0x200
 #define LBF_MOVED 0x40
+#define LBF_DST_REDIRECTED 0x80
 
 struct lb_env {
 	struct sched_domain	*sd;
@@ -9103,7 +9104,7 @@ static struct task_struct *detach_one_task(struct lb_env *env)
 
 #define SCHED_CAMBYSES_AUTHOR	"Masahito Suzuki"
 #define SCHED_CAMBYSES_PROGNAME	"Cambyses CFS Load Balancer modification"
-#define SCHED_CAMBYSES_VERSION	"0.6.0"
+#define SCHED_CAMBYSES_VERSION	"0.7.2"
 
 static int __init sched_cambyses_init(void)
 {
@@ -9141,20 +9142,24 @@ static inline unsigned long shr_bound(unsigned long val, unsigned long shift)
 	return val >> shift;
 }
 
-/*
- * Does moving @p, costing @cost, fit the remaining imbalance budget?
- *
- * LB_STRICT_BUDGET compares directly and notes the smallest overshoot seen so
- * far.  Upstream instead relaxes the comparison by sd->nr_balance_failed.
- */
+static inline bool lb_concede_cheapest(struct lb_env *env)
+{
+	return sched_feat(LB_CONCEDE_CHEAPEST) && env->idle != CPU_NOT_IDLE &&
+	       !(env->flags & LBF_DST_REDIRECTED);
+}
+
 static bool lb_cost_fits(struct lb_env *env, struct lb_concession *concession,
 			 struct task_struct *p, unsigned long cost)
 {
-	if (!sched_feat(LB_STRICT_BUDGET))
+	if (!lb_concede_cheapest(env))
 		return shr_bound(cost, env->sd->nr_balance_failed) <= env->imbalance;
 
 	if (cost <= env->imbalance)
 		return true;
+
+	/* Reject overshoots that would increase imbalance in reverse direction. */
+	if (cost - env->imbalance >= env->imbalance)
+		return false;
 
 	if (!concession->p || cost < concession->cost) {
 		concession->p = p;
@@ -11126,6 +11131,7 @@ more_balance:
 			env.dst_rq	 = cpu_rq(env.new_dst_cpu);
 			env.dst_cpu	 = env.new_dst_cpu;
 			env.flags	&= ~LBF_DST_PINNED;
+			env.flags	|= LBF_DST_REDIRECTED;
 			env.loop	 = 0;
 			env.loop_break	 = sched_nr_migrate_break;
 

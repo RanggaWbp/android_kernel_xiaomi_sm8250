@@ -127,7 +127,11 @@ SCHED_FEAT(LB_ROTATE_BLOCK, false)
  *
  * Turn off to get the upstream shr_bound() relaxation.
  */
-SCHED_FEAT(LB_STRICT_BUDGET, true)
+/*
+ * Concede the cheapest oversize task on idle-CPU balancing if it still reduces
+ * the imbalance; keep the upstream failure-based relaxation for busy CPUs.
+ */
+SCHED_FEAT(LB_CONCEDE_CHEAPEST, true)
 
 SCHED_FEAT(WA_IDLE, true)
 SCHED_FEAT(WA_WEIGHT, true)
