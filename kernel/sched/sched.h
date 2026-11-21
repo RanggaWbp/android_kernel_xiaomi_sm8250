@@ -2006,6 +2006,10 @@ extern void init_sched_fair_class(void);
 
 extern void reweight_task(struct task_struct *p, int prio);
 
+#ifdef CONFIG_SCHED_BORE
+#include <linux/sched/bore.h>
+#endif
+
 extern void resched_curr(struct rq *rq);
 extern void resched_cpu(int cpu);
 

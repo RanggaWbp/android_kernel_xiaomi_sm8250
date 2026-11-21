@@ -1224,6 +1224,11 @@ config SCHED_BORE
 	  With a little impact to scheduling fairness, it may improve
 	  responsiveness especially under heavy background workload.
 
+	  BORE 7.0.0-cfs adapts burst penalties and inheritance to Linux 4.19
+	  CFS; it does not implement EEVDF deadlines or protected slices.
+	  Set kernel.sched_bore=0 to restore native task weights at runtime.
+	  See Documentation/scheduler/bore-cfs-port.txt for controls and limits.
+
 	  If unsure, say Y here.
 
 config SCHED_AUTOGROUP

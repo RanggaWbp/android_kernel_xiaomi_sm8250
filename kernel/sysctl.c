@@ -174,16 +174,10 @@ static int ngroups_max = NGROUPS_MAX;
 static const int cap_last_cap = CAP_LAST_CAP;
 
 #ifdef CONFIG_SCHED_BORE
-extern uint sched_bore;
-extern uint sched_burst_smoothness_long;
-extern uint sched_burst_smoothness_short;
-extern uint sched_burst_fork_atavistic;
-extern uint sched_burst_penalty_offset;
-extern uint sched_burst_penalty_scale;
-extern uint sched_burst_cache_lifetime;
-static int __maybe_unused sixty_four     = 64;
-static int __maybe_unused maxval_12_bits = 4095;
-#endif // CONFIG_SCHED_BORE
+#include <linux/sched/bore.h>
+static unsigned int bore_max_offset = 63;
+static unsigned int bore_max_scale = 4095;
+#endif
 
 /*
  * This is needed for proc_doulongvec_minmax of sysctl_hung_task_timeout_secs
@@ -1625,65 +1619,56 @@ static struct ctl_table kern_table[] = {
 	{
 		.procname	= "sched_bore",
 		.data		= &sched_bore,
-		.maxlen		= sizeof(int),
+		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler = proc_douintvec_minmax,
-		.extra1		= &one,
-		.extra2		= &one,
-	},
-	{
-		.procname	= "sched_burst_smoothness_long",
-		.data		= &sched_burst_smoothness_long,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler = proc_douintvec_minmax,
+		.proc_handler	= sched_bore_update_handler,
 		.extra1		= &zero,
 		.extra2		= &one,
 	},
 	{
-		.procname	= "sched_burst_smoothness_short",
-		.data		= &sched_burst_smoothness_short,
-		.maxlen		= sizeof(int),
+		.procname	= "sched_burst_inherit_type",
+		.data		= &sched_burst_inherit_type,
+		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler = proc_douintvec_minmax,
+		.proc_handler	= proc_douintvec_minmax,
 		.extra1		= &zero,
-		.extra2		= &one,
+		.extra2		= &two,
 	},
 	{
-		.procname	= "sched_burst_fork_atavistic",
-		.data		= &sched_burst_fork_atavistic,
-		.maxlen		= sizeof(int),
+		.procname	= "sched_burst_smoothness",
+		.data		= &sched_burst_smoothness,
+		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler = proc_douintvec_minmax,
+		.proc_handler	= proc_douintvec_minmax,
 		.extra1		= &zero,
 		.extra2		= &three,
 	},
 	{
 		.procname	= "sched_burst_penalty_offset",
 		.data		= &sched_burst_penalty_offset,
-		.maxlen		= sizeof(int),
+		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler = proc_douintvec_minmax,
+		.proc_handler	= proc_douintvec_minmax,
 		.extra1		= &zero,
-		.extra2		= &sixty_four,
+		.extra2		= &bore_max_offset,
 	},
 	{
 		.procname	= "sched_burst_penalty_scale",
 		.data		= &sched_burst_penalty_scale,
-		.maxlen		= sizeof(int),
+		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler = proc_douintvec_minmax,
+		.proc_handler	= proc_douintvec_minmax,
 		.extra1		= &zero,
-		.extra2		= &maxval_12_bits,
+		.extra2		= &bore_max_scale,
 	},
 	{
 		.procname	= "sched_burst_cache_lifetime",
 		.data		= &sched_burst_cache_lifetime,
-		.maxlen		= sizeof(int),
+		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler = proc_douintvec,
+		.proc_handler	= proc_douintvec,
 	},
-#endif // CONFIG_SCHED_BORE
+#endif
 	{
 		.procname	= "panic_on_warn",
 		.data		= &panic_on_warn,

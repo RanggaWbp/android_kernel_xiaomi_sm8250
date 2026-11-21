@@ -137,78 +137,7 @@ unsigned int normalized_sysctl_sched_wakeup_granularity	= 1000000UL;
 const_debug unsigned int sysctl_sched_migration_cost	= 500000UL;
 DEFINE_PER_CPU_READ_MOSTLY(int, sched_load_boost);
 
-#ifdef CONFIG_SCHED_BORE
-uint __read_mostly sched_bore                   = 1;
-uint __read_mostly sched_burst_smoothness_long  = 1;
-uint __read_mostly sched_burst_smoothness_short = 0;
-uint __read_mostly sched_burst_fork_atavistic   = 2;
-uint __read_mostly sched_burst_penalty_offset   = 22;
-uint __read_mostly sched_burst_penalty_scale    = 1280;
-uint __read_mostly sched_burst_cache_lifetime   = 60000000;
 
-#define MAX_BURST_PENALTY (39U <<2)
-
-static inline u32 log2plus1_u64_u32f8(u64 v) {
-	u32 msb = fls64(v);
-	s32 excess_bits = msb - 9;
-    u8 fractional = (0 <= excess_bits)? v >> excess_bits: v << -excess_bits;
-	return msb << 8 | fractional;
-}
-
-static inline u32 calc_burst_penalty(u64 burst_time) {
-	u32 greed, tolerance, penalty, scaled_penalty;
-	
-	greed = log2plus1_u64_u32f8(burst_time);
-	tolerance = sched_burst_penalty_offset << 8;
-	penalty = max(0, (s32)greed - (s32)tolerance);
-	scaled_penalty = penalty * sched_burst_penalty_scale >> 16;
-
-	return min(MAX_BURST_PENALTY, scaled_penalty);
-}
-
-static inline u64 scale_slice(u64 delta, struct sched_entity *se) {
-	return mul_u64_u32_shr(delta, sched_prio_to_wmult[se->burst_score], 22);
-}
-
-static inline struct task_struct *task_of(struct sched_entity *se);
-
-static void update_burst_score(struct sched_entity *se) {
-	struct task_struct *p;
-	u8 prio, prev_prio, new_prio;
-
-	if (!entity_is_task(se)) return;
-	p = task_of(se);
-	prio = p->static_prio - MAX_RT_PRIO;
-	prev_prio = min(39, prio + se->burst_score);
-
-	se->burst_score = se->burst_penalty >> 2;
-
-	new_prio = min(39, prio + se->burst_score);
-	if (new_prio != prev_prio)
-		reweight_task(p, new_prio);
-}
-
-static void update_burst_penalty(struct sched_entity *se) {
-	se->curr_burst_penalty = calc_burst_penalty(se->burst_time);
-	se->burst_penalty = max(se->prev_burst_penalty, se->curr_burst_penalty);
-	update_burst_score(se);
-}
-
-static inline u32 binary_smooth(u32 new, u32 old) {
-  int increment = new - old;
-  return (0 <= increment)?
-    old + ( increment >> (int)sched_burst_smoothness_long):
-    old - (-increment >> (int)sched_burst_smoothness_short);
-}
-
-static void restart_burst(struct sched_entity *se) {
-	se->burst_penalty = se->prev_burst_penalty =
-		binary_smooth(se->curr_burst_penalty, se->prev_burst_penalty);
-	se->curr_burst_penalty = 0;
-	se->burst_time = 0;
-	update_burst_score(se);
-}
-#endif // CONFIG_SCHED_BORE
 
 #ifdef CONFIG_SMP
 /*
@@ -973,18 +902,16 @@ static void update_curr(struct cfs_rq *cfs_rq)
 	curr->sum_exec_runtime += delta_exec;
 	schedstat_add(cfs_rq->exec_clock, delta_exec);
 
-#ifdef CONFIG_SCHED_BORE
-	curr->burst_time += delta_exec;
-	update_burst_penalty(curr);
-	curr->vruntime += max(1ULL, calc_delta_fair(delta_exec, curr));
-#else // !CONFIG_SCHED_BORE
 	curr->vruntime += calc_delta_fair(delta_exec, curr);
-#endif // CONFIG_SCHED_BORE
 	update_min_vruntime(cfs_rq);
 
 	if (entity_is_task(curr)) {
 		struct task_struct *curtask = task_of(curr);
 
+#ifdef CONFIG_SCHED_BORE
+		/* Charge this interval at its old weight; change only future service. */
+		update_curr_bore(curtask, delta_exec);
+#endif
 		trace_sched_stat_runtime(curtask, delta_exec, curr->vruntime);
 		cgroup_account_cputime(curtask, delta_exec);
 		account_group_exec_runtime(curtask, delta_exec);
@@ -3055,9 +2982,35 @@ void reweight_task(struct task_struct *p, int prio)
 	struct cfs_rq *cfs_rq = cfs_rq_of(se);
 	struct load_weight *load = &se->load;
 	unsigned long weight = scale_load(sched_prio_to_weight[prio]);
+#ifdef CONFIG_SCHED_BORE
+	bool stop_update = p->bore.stop_update;
 
-	reweight_entity(cfs_rq, se, weight, weight);
+	/* reweight_entity() can call update_curr(); suppress nested reweight. */
+	p->bore.stop_update = true;
+	if (idle_policy(p->policy)) {
+		weight = scale_load(WEIGHT_IDLEPRIO);
+		prio = -1;
+	}
+#endif
+#if defined(CONFIG_SCHED_BORE) && defined(CONFIG_SMP)
+	/* Migrated remote wakeups have not attached to the destination PELT yet. */
+	if (!se->avg.last_update_time) {
+		u32 divider = LOAD_AVG_MAX - 1024 + se->avg.period_contrib;
+
+		se->runnable_weight = weight;
+		update_load_set(load, weight);
+		se->avg.load_avg = div_u64(se_weight(se) * se->avg.load_sum, divider);
+		se->avg.runnable_load_avg =
+			div_u64(se_runnable(se) * se->avg.runnable_load_sum, divider);
+	} else
+#endif
+		reweight_entity(cfs_rq, se, weight, weight);
+#ifdef CONFIG_SCHED_BORE
+	p->bore.stop_update = stop_update;
+	load->inv_weight = prio < 0 ? WMULT_IDLEPRIO : sched_prio_to_wmult[prio];
+#else
 	load->inv_weight = sched_prio_to_wmult[prio];
+#endif
 }
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
@@ -5739,7 +5692,7 @@ static void dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 		cfs_rq = cfs_rq_of(se);
 		if (cfs_rq->curr == se)
 			update_curr(cfs_rq);
-		restart_burst(se);
+		restart_burst_bore(p);
 	}
 #endif // CONFIG_SCHED_BORE
 
@@ -8611,7 +8564,7 @@ static void yield_task_fair(struct rq *rq)
 	 */
 	update_curr(cfs_rq);
 #ifdef CONFIG_SCHED_BORE
-	restart_burst(se);
+	restart_burst_bore(curr);
 	if (unlikely(rq->nr_running == 1))
 		return;
 
@@ -12423,9 +12376,6 @@ static void task_fork_fair(struct task_struct *p)
 		update_curr(cfs_rq);
 		se->vruntime = curr->vruntime;
 	}
-#ifdef CONFIG_SCHED_BORE
-	update_burst_score(se);
-#endif // CONFIG_SCHED_BORE
 	place_entity(cfs_rq, se, 1);
 
 	if (sysctl_sched_child_runs_first && curr && entity_before(curr, se)) {
@@ -12588,6 +12538,10 @@ static void switched_from_fair(struct rq *rq, struct task_struct *p)
 static void switched_to_fair(struct rq *rq, struct task_struct *p)
 {
 	attach_task_cfs_rq(p);
+#ifdef CONFIG_SCHED_BORE
+	reset_task_bore(p);
+	reweight_task(p, effective_prio_bore(p));
+#endif
 
 	if (task_on_rq_queued(p)) {
 		/*

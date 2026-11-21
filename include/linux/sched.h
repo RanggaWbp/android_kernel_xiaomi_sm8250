@@ -541,16 +541,7 @@ struct sched_entity {
 	u64				sum_exec_runtime;
 	u64				vruntime;
 	u64				prev_sum_exec_runtime;
-#ifdef CONFIG_SCHED_BORE
-	u64				burst_time;
-	u8				prev_burst_penalty;
-	u8				curr_burst_penalty;
-	u8				burst_penalty;
-	u8				burst_score;
-	u8				child_burst;
-	u32				child_burst_cnt;
-	u64				child_burst_last_cached;
-#endif // CONFIG_SCHED_BORE
+
 
 	u64				nr_migrations;
 
@@ -851,6 +842,23 @@ struct poc_sync {
 #define POC_SYNC_INIT	((struct poc_sync){ .hist = 0xffff, .lie_log2 = 14 })
 #endif
 
+#ifdef CONFIG_SCHED_BORE
+struct bore_bc {
+	u64 timestamp;
+	u16 penalty;
+};
+
+struct bore_ctx {
+	u64 burst_time;
+	u16 prev_penalty;
+	u16 curr_penalty;
+	u16 penalty;
+	bool stop_update;
+	struct bore_bc subtree;
+	struct bore_bc group;
+};
+#endif
+
 struct task_struct {
 #ifdef CONFIG_THREAD_INFO_IN_TASK
 	/*
@@ -904,6 +912,9 @@ struct task_struct {
 
 	const struct sched_class	*sched_class;
 	struct sched_entity		se;
+#ifdef CONFIG_SCHED_BORE
+	struct bore_ctx			bore;
+#endif
 #ifdef CONFIG_SCHED_POC_SELECTOR
 	struct poc_sync			poc_sync;
 #endif
